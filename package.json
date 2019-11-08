@@ -1,21 +1,15 @@
 {
-  "name": "@tyriar/avl-tree",
+  "name": "avl-tree",
   "version": "1.0.1",
   "description": "An implementation of the AVL tree data structure",
   "scripts": {
-    "doc": "documentation-readme -s \"API\"",
-    "test": "xo && nyc ava",
-    "coveralls": "nyc report --reporter=text-lcov | coveralls"
+    "build": "rm -rf build && tsc",
+    "test": "npm run build && ava ./build/test/*.js"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/gwtw/js-avl-tree.git"
+    "url": "https://github.com/ccorcos/js-avl-tree.git"
   },
-  "keywords": [
-    "computer science",
-    "data structure",
-    "tree"
-  ],
   "main": "src/avl-tree.js",
   "author": "Daniel Imms (http://www.growingwiththeweb.com)",
   "license": "MIT",
@@ -24,21 +18,9 @@
   },
   "homepage": "https://github.com/gwtw/js-avl-tree",
   "devDependencies": {
-    "ava": "^0.14.0",
-    "coveralls": "^2.11.4",
-    "documentation-readme": "^2.1.0",
-    "nyc": "^3.2.2",
-    "xo": "^0.18.1"
-  },
-  "xo": {
-    "space": 2,
-    "rules": {
-      "capitalized-comments": "off",
-      "no-implicit-coercion": "off",
-      "no-lonely-if": "off",
-      "no-use-before-define": "off",
-      "no-var": "off",
-      "prefer-arrow-callback": "off"
-    }
+    "@types/node": "^12.12.6",
+    "ava": "^2.4.0",
+    "ts-node": "^8.4.1",
+    "typescript": "^3.7.2"
   }
 }
