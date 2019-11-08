@@ -17,9 +17,12 @@ class InMemoryKeyValueStore {
   }
 }
 
-class InMemoryNodeStorage<K, V> {
+class AvlNodeStore<K, V> {
   private store: InMemoryKeyValueStore
-  get(id: string) {
+  get(id: string | undefined): AvlNode<K, V> | undefined {
+    if (id === undefined) {
+      return
+    }
     const result = this.store.get(id)
     if (result !== undefined) {
       return JSON.parse(result)
@@ -34,89 +37,169 @@ class InMemoryNodeStorage<K, V> {
 }
 
 interface AvlNode<K, V> {
-  readonly id: string
-  readonly leftId: string | undefined
-  readonly rightId: string | undefined
-  readonly height: number
-  readonly key: K
-  readonly value: V
-  // readonly size: number // TODO
+  id: string
+  leftId: string | undefined
+  rightId: string | undefined
+  height: number
+  key: K
+  value: V
+  //  size: number // TODO
 }
 
 type Compare<K> = (a: K, b: K) => number
 
 export class AvlTree<K, V> {
-  _root: Node<K, V> | undefined
-  _size = 0
+  // _size = 0
 
-  constructor(private _compare: (a: K, b: K) => number = defaultCompare) {}
+  constructor(
+    private store: AvlNodeStore<K, V>,
+    private compare: Compare<K> = defaultCompare,
+    private rootId: string | undefined
+  ) {}
 
-  insert(key: K, value: V) {
-    this._root = this._insert(key, value, this._root)
-    this._size++
+  root() {
+    return this.store.get(this.rootId)
   }
 
-  _insert(key: K, value: V, root: Node<K, V> | undefined) {
+  insert(key: K, value: V) {
+    const newRoot = this._insert(key, value, this.root())
+    return new AvlTree(this.store, this.compare, newRoot.id)
+    // this._size++
+  }
+
+  _insert(key: K, value: V, root: AvlNode<K, V> | undefined): AvlNode<K, V> {
     // Perform regular BST insertion
     if (root === undefined) {
-      return new Node(key, value)
+      const newNode: AvlNode<K, V> = {
+        id: randomId(),
+        leftId: undefined,
+        rightId: undefined,
+        height: 0,
+        key: key,
+        value: value,
+      }
+      this.store.set(newNode)
+      return newNode
     }
 
-    if (this._compare(key, root.key) < 0) {
-      root.left = this._insert(key, value, root.left)
-    } else if (this._compare(key, root.key) > 0) {
-      root.right = this._insert(key, value, root.right)
+    let newRoot: AvlNode<K, V>
+    if (this.compare(key, root.key) < 0) {
+      const left = this.store.get(root.leftId)
+      const newLeft = this._insert(key, value, left)
+      newRoot = {
+        ...root,
+        id: randomId(),
+        leftId: newLeft.id,
+      }
+    } else if (this.compare(key, root.key) > 0) {
+      const right = this.store.get(root.rightId)
+      const newRight = this._insert(key, value, right)
+      newRoot = {
+        ...root,
+        id: randomId(),
+        rightId: newRight.id,
+      }
     } else {
       // It's a duplicate so insertion failed, decrement size to make up for it
-      this._size--
-      return root
+      // this._size--
+      newRoot = {
+        ...root,
+        id: randomId(),
+        value: value,
+      }
+      this.store.set(newRoot)
+      return newRoot
     }
 
     // Update height and rebalance tree
-    root.height = Math.max(root.leftHeight(), root.rightHeight()) + 1
-    var balanceState = getBalanceState(root)
+    newRoot.height =
+      Math.max(this.leftHeight(newRoot), this.rightHeight(newRoot)) + 1
+
+    var balanceState = this.getBalanceState(newRoot)
+
+    // this.store.set(newRoot)
 
     if (balanceState === BalanceState.UNBALANCED_LEFT) {
-      if (this._compare(key, root.left!.key) < 0) {
+      if (this.compare(key, newRoot.left!.key) < 0) {
         // Left left case
-        root = root.rotateRight()
+        newRoot = newRoot.rotateRight()
       } else {
         // Left right case
-        root.left = root.left!.rotateLeft()
-        return root.rotateRight()
+        newRoot.left = newRoot.left!.rotateLeft()
+        return newRoot.rotateRight()
       }
     }
 
     if (balanceState === BalanceState.UNBALANCED_RIGHT) {
-      if (this._compare(key, root.right!.key) > 0) {
+      if (this.compare(key, newRoot.right!.key) > 0) {
         // Right right case
-        root = root.rotateLeft()
+        newRoot = newRoot.rotateLeft()
       } else {
         // Right left case
-        root.right = root.right!.rotateRight()
-        return root.rotateLeft()
+        newRoot.right = newRoot.right!.rotateRight()
+        return newRoot.rotateLeft()
       }
     }
 
-    return root
+    return newRoot
+  }
+
+  leftHeight(node: AvlNode<K, V>) {
+    const left = this.store.get(node.leftId)
+    if (!left) {
+      return -1
+    }
+    return left.height
+  }
+
+  rightHeight(node: AvlNode<K, V>) {
+    const right = this.store.get(node.rightId)
+    if (!right) {
+      return -1
+    }
+    return right.height
+  }
+
+  /**
+   * Gets the balance state of a node, indicating whether the left or right
+   * sub-trees are unbalanced.
+   *
+   * @private
+   * @param {Node} node The node to get the difference from.
+   * @return {BalanceState} The BalanceState of the node.
+   */
+  getBalanceState(node: AvlNode<K, V>) {
+    var heightDifference = this.leftHeight(node) - this.rightHeight(node)
+    switch (heightDifference) {
+      case -2:
+        return BalanceState.UNBALANCED_RIGHT
+      case -1:
+        return BalanceState.SLIGHTLY_UNBALANCED_RIGHT
+      case 1:
+        return BalanceState.SLIGHTLY_UNBALANCED_LEFT
+      case 2:
+        return BalanceState.UNBALANCED_LEFT
+      default:
+        return BalanceState.BALANCED
+    }
   }
 
   delete(key: K) {
-    this._root = this._delete(key, this._root)
-    this._size--
+    this.rootId = this._delete(key, this.rootId)
+    // this._size--
   }
 
   _delete(key: K, root: Node<K, V> | undefined) {
     // Perform regular BST deletion
     if (root === undefined) {
-      this._size++
+      // this._size++
       return root
     }
 
-    if (this._compare(key, root.key) < 0) {
+    if (this.compare(key, root.key) < 0) {
       // The key to be deleted is in the left sub-tree
       root.left = this._delete(key, root.left)
-    } else if (this._compare(key, root.key) > 0) {
+    } else if (this.compare(key, root.key) > 0) {
       // The key to be deleted is in the right sub-tree
       root.right = this._delete(key, root.right)
     } else {
@@ -181,18 +264,18 @@ export class AvlTree<K, V> {
     return root
   }
   get(key: K) {
-    if (this._root === undefined) {
+    if (this.rootId === undefined) {
       return undefined
     }
 
-    const node = this._get(key, this._root)
+    const node = this._get(key, this.rootId)
     if (node) {
       return node.value
     }
   }
 
   _get(key: K, root: Node<K, V>): Node<K, V> | undefined {
-    var result = this._compare(key, root.key)
+    var result = this.compare(key, root.key)
 
     if (result === 0) {
       return root
@@ -212,27 +295,27 @@ export class AvlTree<K, V> {
   }
 
   contains(key: K) {
-    if (this._root === undefined) {
+    if (this.rootId === undefined) {
       return false
     }
 
-    return !!this._get(key, this._root)
+    return !!this._get(key, this.rootId)
   }
 
   findMinimum() {
-    return minValueNode(this._root!).key
+    return minValueNode(this.rootId!).key
   }
 
   findMaximum() {
-    return maxValueNode(this._root!).key
+    return maxValueNode(this.rootId!).key
   }
 
   size() {
-    return this._size
+    // return this._size
   }
 
   isEmpty() {
-    return this._size === 0
+    // return this._size === 0
   }
 }
 
@@ -269,30 +352,6 @@ var BalanceState = {
   BALANCED: 3,
   SLIGHTLY_UNBALANCED_LEFT: 4,
   UNBALANCED_LEFT: 5,
-}
-
-/**
- * Gets the balance state of a node, indicating whether the left or right
- * sub-trees are unbalanced.
- *
- * @private
- * @param {Node} node The node to get the difference from.
- * @return {BalanceState} The BalanceState of the node.
- */
-function getBalanceState<K, V>(node: Node<K, V>) {
-  var heightDifference = node.leftHeight() - node.rightHeight()
-  switch (heightDifference) {
-    case -2:
-      return BalanceState.UNBALANCED_RIGHT
-    case -1:
-      return BalanceState.SLIGHTLY_UNBALANCED_RIGHT
-    case 1:
-      return BalanceState.SLIGHTLY_UNBALANCED_LEFT
-    case 2:
-      return BalanceState.UNBALANCED_LEFT
-    default:
-      return BalanceState.BALANCED
-  }
 }
 
 /**
