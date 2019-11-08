@@ -2,7 +2,7 @@ import test from "ava"
 import { AvlTree } from "../src/avl-tree"
 
 test("should return the size of the tree", function(t) {
-  var tree = new AvlTree()
+  var tree = new AvlTree<number, number>()
   t.is(tree.get(1), undefined)
   t.is(tree.get(2), undefined)
   t.is(tree.get(3), undefined)

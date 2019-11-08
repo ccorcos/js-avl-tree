@@ -2,7 +2,7 @@ import test from "ava"
 import { AvlTree } from "../src/avl-tree"
 
 test("should return the minimum key in the tree", function(t) {
-  var tree = new AvlTree()
+  var tree = new AvlTree<number, undefined>()
   tree.insert(5, undefined)
   tree.insert(3, undefined)
   tree.insert(1, undefined)
