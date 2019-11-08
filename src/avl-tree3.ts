@@ -1,11 +1,11 @@
 /*
 
 TODO
+- make this thing immutable
 - migrate the rest of the tests.
   - better DevX?
-- cleanup var
-- make this thing immutable
   - immutablility tests
+- cleanup var
 - make it async
 - benchmark
 
