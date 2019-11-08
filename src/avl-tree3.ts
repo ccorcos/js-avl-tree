@@ -1,5 +1,12 @@
-import { Node } from "./node"
-import { Transaction, clone } from "./storage"
+/*
+
+TODO
+- cleanup var
+
+*/
+
+import { Transaction, AvlNodeReadOnlyStore } from "./storage"
+import { randomId } from "./utils"
 
 export interface AvlNode<K, V> {
   id: string
@@ -11,7 +18,13 @@ export interface AvlNode<K, V> {
   //  size: number // TODO
 }
 
-type Compare<K> = (a: K, b: K) => number
+function clone<K, V>(node: AvlNode<K, V>): AvlNode<K, V> {
+  const newNode = {
+    ...node,
+    id: randomId(),
+  }
+  return newNode
+}
 
 function leftHeight<K, V>(args: {
   transaction: Transaction<K, V>
@@ -60,8 +73,10 @@ function rotateRight<K, V>(args: {
     throw Error("Cannot rotateRight without a left!")
   }
 
-  var a = clone(left)
+  const a = clone(left)
+  transaction.cleanup(left)
   const b = clone(root)
+  transaction.cleanup(root)
 
   b.leftId = a.rightId
   a.rightId = b.id
@@ -101,7 +116,9 @@ function rotateLeft<K, V>(args: {
   }
 
   var b = clone(right)
+  transaction.cleanup(right)
   const a = clone(root)
+  transaction.cleanup(root)
 
   a.rightId = b.leftId
   b.leftId = a.id
@@ -117,223 +134,278 @@ function rotateLeft<K, V>(args: {
   return b
 }
 
-export class AvlTree<K, V> {
-  _root: Node<K, V> | undefined
-  _size = 0
+type Compare<K> = (a: K, b: K) => number
 
-  constructor(private _compare: (a: K, b: K) => number = defaultCompare) {}
+export function insert<K, V>(args: {
+  transaction: Transaction<K, V>
+  root: AvlNode<K, V> | undefined
+  compare: Compare<K>
+  key: K
+  value: V
+}): AvlNode<K, V> {
+  const { transaction, root, compare, key, value } = args
 
-  insert(key: K, value: V) {
-    this._root = this._insert(key, value, this._root)
-    this._size++
+  // Perform regular BST insertion
+  if (root === undefined) {
+    const newNode: AvlNode<K, V> = {
+      id: randomId(),
+      leftId: undefined,
+      rightId: undefined,
+      height: 0,
+      key: key,
+      value: value,
+    }
+    transaction.set(newNode)
+    return newNode
   }
 
-  _insert(key: K, value: V, root: Node<K, V> | undefined) {
-    // Perform regular BST insertion
-    if (root === undefined) {
-      return new Node(key, value)
+  const newRoot: AvlNode<K, V> = clone(root)
+  transaction.cleanup(root)
+  if (compare(key, root.key) < 0) {
+    const left = transaction.get(root.leftId)
+    const newLeft = insert({ transaction, compare, key, value, root: left })
+    if (left) {
+      transaction.cleanup(left)
     }
+    newRoot.leftId = newLeft.id
+  } else if (compare(key, root.key) > 0) {
+    const right = transaction.get(root.rightId)
+    const newRight = insert({ transaction, compare, key, value, root: right })
+    if (right) {
+      transaction.cleanup(right)
+    }
+    newRoot.rightId = newRight.id
+  } else {
+    // It's a duplicate so insertion failed, decrement size to make up for it
+    // this._size--
+    newRoot.value = value
+    transaction.set(newRoot)
+    return newRoot
+  }
 
-    if (this._compare(key, root.key) < 0) {
-      root.left = this._insert(key, value, root.left)
-    } else if (this._compare(key, root.key) > 0) {
-      root.right = this._insert(key, value, root.right)
+  // Update height and rebalance tree
+  newRoot.height =
+    Math.max(
+      leftHeight({ transaction, node: newRoot }),
+      rightHeight({ transaction, node: newRoot })
+    ) + 1
+  var balanceState = getBalanceState({ transaction, node: newRoot })
+
+  if (balanceState === BalanceState.UNBALANCED_LEFT) {
+    const left = transaction.get(newRoot.leftId)
+    if (!left) {
+      throw new Error("Left must exist.")
+    }
+    if (compare(key, left.key) < 0) {
+      return rotateRight({ transaction, root: newRoot })
     } else {
-      // It's a duplicate so insertion failed, decrement size to make up for it
-      this._size--
-      return root
-    }
-
-    // Update height and rebalance tree
-    root.height = Math.max(root.leftHeight(), root.rightHeight()) + 1
-    var balanceState = getBalanceState(root)
-
-    if (balanceState === BalanceState.UNBALANCED_LEFT) {
-      if (this._compare(key, root.left!.key) < 0) {
-        // Left left case
-        root = root.rotateRight()
-      } else {
-        // Left right case
-        root.left = root.left!.rotateLeft()
-        return root.rotateRight()
-      }
-    }
-
-    if (balanceState === BalanceState.UNBALANCED_RIGHT) {
-      if (this._compare(key, root.right!.key) > 0) {
-        // Right right case
-        root = root.rotateLeft()
-      } else {
-        // Right left case
-        root.right = root.right!.rotateRight()
-        return root.rotateLeft()
-      }
-    }
-
-    return root
-  }
-
-  delete(key: K) {
-    this._root = this._delete(key, this._root)
-    this._size--
-  }
-
-  _delete(key: K, root: Node<K, V> | undefined) {
-    // Perform regular BST deletion
-    if (root === undefined) {
-      this._size++
-      return root
-    }
-
-    if (this._compare(key, root.key) < 0) {
-      // The key to be deleted is in the left sub-tree
-      root.left = this._delete(key, root.left)
-    } else if (this._compare(key, root.key) > 0) {
-      // The key to be deleted is in the right sub-tree
-      root.right = this._delete(key, root.right)
-    } else {
-      // root is the node to be deleted
-      if (!root.left && !root.right) {
-        root = undefined
-      } else if (!root.left && root.right) {
-        root = root.right
-      } else if (root.left && !root.right) {
-        root = root.left
-      } else {
-        // Node has 2 children, get the in-order successor
-        var inOrderSuccessor = minValueNode(root.right!)
-        root.key = inOrderSuccessor.key
-        root.value = inOrderSuccessor.value
-        root.right = this._delete(inOrderSuccessor.key, root.right)
-      }
-    }
-
-    if (root === undefined) {
-      return root
-    }
-
-    // Update height and rebalance tree
-    root.height = Math.max(root.leftHeight(), root.rightHeight()) + 1
-    var balanceState = getBalanceState(root)
-
-    if (balanceState === BalanceState.UNBALANCED_LEFT) {
-      // Left left case
-      if (
-        getBalanceState(root.left!) === BalanceState.BALANCED ||
-        getBalanceState(root.left!) === BalanceState.SLIGHTLY_UNBALANCED_LEFT
-      ) {
-        return root.rotateRight()
-      }
       // Left right case
-      if (
-        getBalanceState(root.left!) === BalanceState.SLIGHTLY_UNBALANCED_RIGHT
-      ) {
-        root.left = root.left!.rotateLeft()
-        return root.rotateRight()
-      }
+      newRoot.leftId = rotateLeft({ transaction, root: left }).id
+      return rotateRight({ transaction, root: newRoot })
+    }
+  }
+
+  if (balanceState === BalanceState.UNBALANCED_RIGHT) {
+    const right = transaction.get(newRoot.rightId)
+    if (!right) {
+      throw new Error("Right must exist.")
     }
 
-    if (balanceState === BalanceState.UNBALANCED_RIGHT) {
+    if (compare(key, right.key) > 0) {
       // Right right case
-      if (
-        getBalanceState(root.right!) === BalanceState.BALANCED ||
-        getBalanceState(root.right!) === BalanceState.SLIGHTLY_UNBALANCED_RIGHT
-      ) {
-        return root.rotateLeft()
-      }
+      return rotateLeft({ transaction, root: newRoot })
+    } else {
       // Right left case
-      if (
-        getBalanceState(root.right!) === BalanceState.SLIGHTLY_UNBALANCED_LEFT
-      ) {
-        root.right = root.right!.rotateRight()
-        return root.rotateLeft()
-      }
+      newRoot.rightId = rotateRight({ transaction, root: right }).id
+      return rotateLeft({ transaction, root: newRoot })
     }
+  }
 
+  transaction.set(newRoot)
+  return newRoot
+}
+
+export function remove<K, V>(args: {
+  transaction: Transaction<K, V>
+  root: AvlNode<K, V> | undefined
+  compare: Compare<K>
+  key: K
+}): AvlNode<K, V> | undefined {
+  const { transaction, root, compare, key } = args
+
+  // Perform regular BST deletion
+  if (root === undefined) {
     return root
   }
-  get(key: K) {
-    if (this._root === undefined) {
+
+  let newRoot = clone(root)
+  transaction.cleanup(root)
+
+  if (compare(key, newRoot.key) < 0) {
+    // The key to be deleted is in the left sub-tree
+    const left = transaction.get(newRoot.leftId)
+    const newLeft = remove({ transaction, compare, key, root: left })
+    if (left) {
+      transaction.cleanup(left)
+    }
+    newRoot.leftId = newLeft ? newLeft.id : undefined
+  } else if (compare(key, newRoot.key) > 0) {
+    // The key to be deleted is in the right sub-tree
+    const right = transaction.get(newRoot.rightId)
+    const newRight = remove({ transaction, compare, key, root: right })
+    if (right) {
+      transaction.cleanup(right)
+    }
+    newRoot.rightId = newRight ? newRight.id : undefined
+  } else {
+    // root is the node to be deleted
+    const left = transaction.get(newRoot.leftId)
+    const right = transaction.get(newRoot.rightId)
+    if (!left && !right) {
+      transaction.cleanup(newRoot)
       return undefined
+    } else if (!left && right) {
+      transaction.cleanup(newRoot)
+      newRoot = right
+    } else if (left && !right) {
+      transaction.cleanup(newRoot)
+      newRoot = left
+    } else if (left && right) {
+      // Node has 2 children, get the in-order successor
+      var inOrderSuccessor = minNode({ transaction, root: right })
+      newRoot.key = inOrderSuccessor.key
+      newRoot.value = inOrderSuccessor.value
+      const newRight = remove({ transaction, compare, root: right, key })
+      transaction.cleanup(right)
+      newRoot.rightId = newRight ? newRight.id : undefined
+    }
+  }
+
+  // Update height and rebalance tree
+  newRoot.height =
+    Math.max(
+      leftHeight({ transaction, node: newRoot }),
+      rightHeight({ transaction, node: newRoot })
+    ) + 1
+  var balanceState = getBalanceState({ transaction, node: newRoot })
+
+  if (balanceState === BalanceState.UNBALANCED_LEFT) {
+    const left = transaction.get(newRoot.leftId)
+    if (!left) {
+      throw new Error("Left must exist!")
+    }
+    // Left left case
+    if (
+      getBalanceState({ transaction, node: left }) === BalanceState.BALANCED ||
+      getBalanceState({ transaction, node: left }) ===
+        BalanceState.SLIGHTLY_UNBALANCED_LEFT
+    ) {
+      return rotateRight({ transaction, root: newRoot })
+    }
+    // Left right case
+    if (
+      getBalanceState({ transaction, node: left }) ===
+      BalanceState.SLIGHTLY_UNBALANCED_RIGHT
+    ) {
+      newRoot.leftId = rotateLeft({ transaction, root: left }).id
+      return rotateRight({ transaction, root: newRoot })
+    }
+  }
+
+  if (balanceState === BalanceState.UNBALANCED_RIGHT) {
+    const right = transaction.get(newRoot.rightId)
+    if (!right) {
+      throw new Error("Right must exist!")
     }
 
-    const node = this._get(key, this._root)
-    if (node) {
-      return node.value
+    // Right right case
+    if (
+      getBalanceState({ transaction, node: right }) === BalanceState.BALANCED ||
+      getBalanceState({ transaction, node: right }) ===
+        BalanceState.SLIGHTLY_UNBALANCED_RIGHT
+    ) {
+      return rotateLeft({ transaction, root: newRoot })
+    }
+    // Right left case
+    if (
+      getBalanceState({ transaction, node: right }) ===
+      BalanceState.SLIGHTLY_UNBALANCED_LEFT
+    ) {
+      newRoot.rightId = rotateRight({ transaction, root: right }).id
+      return rotateLeft({ transaction, root: newRoot })
     }
   }
 
-  _get(key: K, root: Node<K, V>): Node<K, V> | undefined {
-    var result = this._compare(key, root.key)
-
-    if (result === 0) {
-      return root
-    }
-
-    if (result < 0) {
-      if (!root.left) {
-        return undefined
-      }
-      return this._get(key, root.left)
-    }
-
-    if (!root.right) {
-      return undefined
-    }
-    return this._get(key, root.right)
-  }
-
-  contains(key: K) {
-    if (this._root === undefined) {
-      return false
-    }
-
-    return !!this._get(key, this._root)
-  }
-
-  findMinimum() {
-    return minValueNode(this._root!).key
-  }
-
-  findMaximum() {
-    return maxValueNode(this._root!).key
-  }
-
-  size() {
-    return this._size
-  }
-
-  isEmpty() {
-    return this._size === 0
-  }
+  return newRoot
 }
 
 /**
- * Gets the minimum value node, rooted in a particular node.
+ * Gets the minimum node, rooted in a particular node.
  */
-function minValueNode<K, V>(root: Node<K, V>) {
+function minNode<K, V>(args: {
+  transaction: Transaction<K, V>
+  root: AvlNode<K, V>
+}) {
+  const { transaction, root } = args
   var current = root
-  while (current.left) {
-    current = current.left
+  var left: AvlNode<K, V> | undefined
+  while ((left = transaction.get(current.leftId))) {
+    current = left
   }
   return current
 }
 
 /**
- * Gets the maximum value node, rooted in a particular node.
+ * Gets the maximum node, rooted in a particular node.
  */
-function maxValueNode<K, V>(root: Node<K, V>) {
+function maxNode<K, V>(args: {
+  transaction: Transaction<K, V>
+  root: AvlNode<K, V>
+}) {
+  const { transaction, root } = args
   var current = root
-  while (current.right) {
-    current = current.right
+  var right: AvlNode<K, V> | undefined
+  while ((right = transaction.get(current.rightId))) {
+    current = right
   }
   return current
+}
+
+export function get<K, V>(args: {
+  store: AvlNodeReadOnlyStore<K, V>
+  compare: Compare<K>
+  root: AvlNode<K, V> | undefined
+  key: K
+}): V | undefined {
+  const { store, root, compare, key } = args
+
+  if (root === undefined) {
+    return undefined
+  }
+
+  const result = compare(key, root.key)
+
+  if (result === 0) {
+    return root.value
+  }
+
+  if (result < 0) {
+    const left = store.get(root.leftId)
+    if (!left) {
+      return undefined
+    }
+    return get({ store, compare, key, root: left })
+  }
+
+  const right = store.get(root.rightId)
+  if (!right) {
+    return undefined
+  }
+  return get({ store, compare, key, root: right })
 }
 
 /**
  * Represents how balanced a node's left and right children are.
- *
- * @private
  */
 var BalanceState = {
   UNBALANCED_RIGHT: 1,
@@ -346,13 +418,12 @@ var BalanceState = {
 /**
  * Gets the balance state of a node, indicating whether the left or right
  * sub-trees are unbalanced.
- *
- * @private
- * @param {Node} node The node to get the difference from.
- * @return {BalanceState} The BalanceState of the node.
  */
-function getBalanceState<K, V>(node: Node<K, V>) {
-  var heightDifference = node.leftHeight() - node.rightHeight()
+function getBalanceState<K, V>(args: {
+  transaction: Transaction<K, V>
+  node: AvlNode<K, V>
+}) {
+  var heightDifference = leftHeight(args) - rightHeight(args)
   switch (heightDifference) {
     case -2:
       return BalanceState.UNBALANCED_RIGHT
@@ -365,18 +436,4 @@ function getBalanceState<K, V>(node: Node<K, V>) {
     default:
       return BalanceState.BALANCED
   }
-}
-
-/**
- * Compares two keys with each other.
- * Returns -1, 0 or 1 if a < b, a == b or a > b respectively.
- */
-function defaultCompare<K>(a: K, b: K): number {
-  if (a > b) {
-    return 1
-  }
-  if (a < b) {
-    return -1
-  }
-  return 0
 }

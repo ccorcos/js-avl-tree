@@ -1,17 +1,5 @@
 import { AvlNode } from "./avl-tree3"
 
-function randomId() {
-  return Math.round(Math.random() * 1e10).toString()
-}
-
-export function clone<K, V>(node: AvlNode<K, V>): AvlNode<K, V> {
-  const newNode = {
-    ...node,
-    id: randomId(),
-  }
-  return newNode
-}
-
 export class InMemoryKeyValueStore {
   private map: Record<string, string> = {}
   get(key: string) {
@@ -45,6 +33,10 @@ export class AvlNodeStore<K, V> {
   }
 }
 
+export interface AvlNodeReadOnlyStore<K, V> {
+  get(id: string | undefined): AvlNode<K, V> | undefined
+}
+
 export class Transaction<K, V> {
   constructor(private store: AvlNodeStore<K, V>) {}
 
@@ -72,6 +64,10 @@ export class Transaction<K, V> {
     const id = value.id
     this.cache[id] = value
     this.writes[id] = value
+  }
+
+  cleanup(node: AvlNode<K, V>) {
+    delete this.writes[node.id]
   }
 
   commit() {
