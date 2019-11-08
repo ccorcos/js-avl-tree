@@ -6,7 +6,7 @@ export function randomId() {
  * Compares two keys with each other.
  * Returns -1, 0 or 1 if a < b, a == b or a > b respectively.
  */
-export function defaultCompare<K>(a: K, b: K): number {
+export function compare<K>(a: K, b: K): number {
   if (a > b) {
     return 1
   }

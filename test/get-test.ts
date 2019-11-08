@@ -1,15 +1,22 @@
 import test from "ava"
-import { AvlTree } from "../src/avl-tree"
+import { insert, get } from "../src/avl-tree3"
+import {
+  InMemoryKeyValueStore,
+  AvlNodeStore,
+  Transaction,
+} from "../src/storage"
+import { compare } from "../src/utils"
 
 test("should return the size of the tree", function(t) {
-  var tree = new AvlTree<number, number>()
-  t.is(tree.get(1), undefined)
-  t.is(tree.get(2), undefined)
-  t.is(tree.get(3), undefined)
-  tree.insert(1, 4)
-  tree.insert(2, 5)
-  tree.insert(3, 6)
-  t.is(tree.get(1), 4)
-  t.is(tree.get(2), 5)
-  t.is(tree.get(3), 6)
+  const store = new AvlNodeStore<number, number>(new InMemoryKeyValueStore())
+
+  const transaction = new Transaction(store)
+  const t1 = insert({ transaction, compare, key: 1, value: 4, root: undefined })
+  const t2 = insert({ transaction, compare, key: 2, value: 5, root: t1 })
+  const t3 = insert({ transaction, compare, key: 3, value: 6, root: t2 })
+  transaction.commit()
+
+  t.is(get({ store, compare, key: 1, root: t3 }), 4)
+  t.is(get({ store, compare, key: 2, root: t3 }), 5)
+  t.is(get({ store, compare, key: 3, root: t3 }), 6)
 })

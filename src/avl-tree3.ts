@@ -1,6 +1,8 @@
 /*
 
 TODO
+- migrate the rest of the tests.
+  - better DevX?
 - cleanup var
 - make this thing immutable
   - immutablility tests
