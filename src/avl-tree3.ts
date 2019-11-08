@@ -2,6 +2,10 @@
 
 TODO
 - cleanup var
+- make this thing immutable
+  - immutablility tests
+- make it async
+- benchmark
 
 */
 

@@ -1,9 +1,3 @@
-# To-Do
-- make this thing immutable
-- immutablility tests
-- make it async
-- benchmark
-
 # js-avl-tree
 
 A JavaScript implementation of the [AVL tree](http://www.growingwiththeweb.com/data-structures/avl-tree/overview/) data structure.
