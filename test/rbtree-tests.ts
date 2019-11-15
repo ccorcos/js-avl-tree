@@ -18,20 +18,17 @@
 //   })
 // }
 
-// var COLORS = ["r", "b", "bb"]
-
-// // function printTree<K, V>(tree: AvlNode<K, V> | undefined): Promise<any> {
+// // function printTree<K, V>(tree: AvlNode<K, V> | undefined): any {
 // //   if (!tree) {
 // //     return []
 // //   }
 // //   return [
-// //     COLORS[tree.color],
 // //     tree.key,
 // //     printTree(tree.getLeft()),
 // //     printTree(tree.getRight()),
 // //   ]
 // // }
-// //
+
 // // function print<K, V>(t: RedBlackTree<K, V>) {
 // //   console.log(util.inspect(printTree(t.getRoot()), { depth: 12 }))
 // // }
@@ -62,15 +59,14 @@
 //         "right tree order invariant"
 //       )
 //     }
-//     const leftSize = checkNode(left)
-//     const rightSize = checkNode(right)
+//     const leftCount = checkNode(left)
+//     const rightCount = checkNode(right)
 
-//     // TODO: Check the heights?
-//     left.height
-//     right.height
-//     node.height
+//     t.assert((left?.count || 0) === leftCount, "left count")
+//     t.assert((right?.count || 0) === rightCount, "left count")
+//     t.assert(node.count === leftCount + rightCount, "total count")
 
-//     return leftSize + rightSize + 1
+//     return leftCount + rightCount + 1
 //   }
 
 //   checkNode(tree.root)
@@ -86,7 +82,7 @@
 //     var next = u.insert(x, true)
 //     checkTree(u, t)
 //     checkTree(next, t)
-//     t.equals(u.length(), arr.length)
+//     t.is(u.root!.count, arr.length)
 //     arr.push(x)
 //     u = next
 //   }

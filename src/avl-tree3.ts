@@ -4,9 +4,10 @@ TODO
 - [x] make this thing immutable
 - [x] migrate the rest of the tests.
   - [x] better DevX with classes. how to distinguish writes in batches?
-  - [ ] keep track of size.
+  - [x] keep track of size.
   - [x] iterator type similar to red-black tree
     - [ ] get method.
+    - [ ] for each method to iterate through the whole tree.
   - [ ] migrate red-black tree tests
     - [ ] immutablility tests
 - [ ] trampoline instead of recursion.
@@ -27,6 +28,7 @@ export interface AvlNode<K, V> {
   key: K
   value: V
   height: number // Used internally by the AVL algorithm
+  count: number
 }
 
 function clone<K, V>(node: AvlNode<K, V>): AvlNode<K, V> {
@@ -59,6 +61,30 @@ function rightHeight<K, V>(args: {
     return -1
   }
   return right.height
+}
+
+function leftCount<K, V>(args: {
+  transaction: Transaction<K, V>
+  node: AvlNode<K, V>
+}) {
+  const { transaction, node } = args
+  const left = transaction.get(node.leftId)
+  if (!left) {
+    return 0
+  }
+  return left.count
+}
+
+function rightCount<K, V>(args: {
+  transaction: Transaction<K, V>
+  node: AvlNode<K, V>
+}) {
+  const { transaction, node } = args
+  const right = transaction.get(node.rightId)
+  if (!right) {
+    return 0
+  }
+  return right.count
 }
 
 /**
@@ -97,6 +123,11 @@ function rotateRight<K, V>(args: {
       rightHeight({ transaction, node: b })
     ) + 1
   a.height = Math.max(leftHeight({ transaction, node: a }), b.height) + 1
+  b.count =
+    leftCount({ transaction, node: b }) +
+    rightCount({ transaction, node: b }) +
+    1
+  a.count = leftCount({ transaction, node: a }) + b.count + 1
 
   transaction.set(a)
   transaction.set(b)
@@ -140,6 +171,12 @@ function rotateLeft<K, V>(args: {
     ) + 1
   b.height = Math.max(rightHeight({ transaction, node: b }), a.height) + 1
 
+  a.count =
+    leftCount({ transaction, node: a }) +
+    rightCount({ transaction, node: a }) +
+    1
+  b.count = rightCount({ transaction, node: b }) + a.count + 1
+
   transaction.set(a)
   transaction.set(b)
   return b
@@ -162,9 +199,10 @@ export function insert<K, V>(args: {
       id: randomId(),
       leftId: undefined,
       rightId: undefined,
-      height: 0,
       key: key,
       value: value,
+      height: 0,
+      count: 1,
     }
     transaction.set(newNode)
     return newNode
@@ -200,6 +238,11 @@ export function insert<K, V>(args: {
       leftHeight({ transaction, node: newRoot }),
       rightHeight({ transaction, node: newRoot })
     ) + 1
+  newRoot.count =
+    leftCount({ transaction, node: newRoot }) +
+    rightCount({ transaction, node: newRoot }) +
+    1
+
   var balanceState = getBalanceState({ transaction, node: newRoot })
 
   if (balanceState === BalanceState.UNBALANCED_LEFT) {
@@ -298,6 +341,10 @@ export function remove<K, V>(args: {
       leftHeight({ transaction, node: newRoot }),
       rightHeight({ transaction, node: newRoot })
     ) + 1
+  newRoot.count =
+    leftCount({ transaction, node: newRoot }) +
+    rightCount({ transaction, node: newRoot }) +
+    1
   var balanceState = getBalanceState({ transaction, node: newRoot })
 
   if (balanceState === BalanceState.UNBALANCED_LEFT) {
