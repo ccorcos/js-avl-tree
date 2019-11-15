@@ -15,7 +15,7 @@ TODO
 
 */
 
-import { Transaction, AvlNodeReadOnlyStore } from "./storage"
+import { Transaction, AvlNodeReadOnlyStore, AvlNodeStore } from "./storage"
 import { randomId } from "./utils"
 
 export interface AvlNode<K, V> {
@@ -445,5 +445,63 @@ function getBalanceState<K, V>(args: {
       return BalanceState.UNBALANCED_LEFT
     default:
       return BalanceState.BALANCED
+  }
+}
+
+/**
+ * A convenient abstraction that isn't quite so functional.
+ */
+export class AvlTree<K, V> {
+  private store: AvlNodeStore<K, V>
+  private rootId: string | undefined
+  private compare: Compare<K>
+
+  constructor(args: {
+    store: AvlNodeStore<K, V>
+    rootId: string | undefined
+    compare: Compare<K>
+  }) {
+    this.store = args.store
+    this.rootId = args.rootId
+    this.compare = args.compare
+  }
+
+  getRoot() {
+    return this.store.get(this.rootId)
+  }
+
+  insert(key: K, value: V) {
+    const transaction = new Transaction(this.store)
+    const newRoot = insert({
+      transaction,
+      compare: this.compare,
+      key: key,
+      value: value,
+      root: transaction.get(this.rootId),
+    })
+    transaction.commit()
+    // TODO: this should be persisted.
+    this.rootId = newRoot.id
+  }
+
+  remove(key: K) {
+    const transaction = new Transaction(this.store)
+    const newRoot = remove({
+      transaction,
+      compare: this.compare,
+      root: transaction.get(this.rootId),
+      key,
+    })
+    // TODO: this should be persisted.
+    this.rootId = newRoot ? newRoot.id : undefined
+  }
+
+  get(key: K) {
+    return get({
+      store: this.store,
+      compare: this.compare,
+      root: this.store.get(this.rootId),
+      key: key,
+    })
   }
 }
