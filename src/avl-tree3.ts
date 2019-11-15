@@ -6,6 +6,14 @@ TODO
   - [x] better DevX with classes. how to distinguish writes in batches?
   - [x] keep track of size.
   - [x] iterator type similar to red-black tree
+
+  HERE
+  - migrating custom-compare test to avl-tree3
+  - need to create better iterator ux
+    - find min, next
+    - find max, prev
+    - forEach
+
     - [ ] get method.
     - [ ] for each method to iterate through the whole tree.
   - [ ] migrate red-black tree tests
@@ -461,6 +469,30 @@ export function get<K, V>(args: {
   }
   return get({ store, compare, key, root: right })
 }
+
+// function find(args: {
+//   store: AvlNodeReadOnlyStore<K, V>
+//   compare: Compare<K>
+//   root: AvlNode<K, V> | undefined
+//   key: K
+// }): Promise<RedBlackTreeIterator<K, V>> {
+//   let cmp = this.compare
+//   let n = await this.getRoot()
+//   let stack: Array<ReadOnlyNode<K, V>> = []
+//   while (n) {
+//     let d = cmp(key, n.key)
+//     stack.push(n)
+//     if (d === 0) {
+//       return new RedBlackTreeIterator({ tree: this, stack }, this.store)
+//     }
+//     if (d <= 0) {
+//       n = await n.getLeft()
+//     } else {
+//       n = await n.getRight()
+//     }
+//   }
+//   return new RedBlackTreeIterator({ tree: this, stack: [] }, this.store)
+// }
 
 /**
  * Represents how balanced a node's left and right children are.
