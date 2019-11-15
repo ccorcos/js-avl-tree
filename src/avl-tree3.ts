@@ -4,7 +4,7 @@ TODO
 - [x] make this thing immutable
 - [x] migrate the rest of the tests.
   - [x] better DevX with classes. how to distinguish writes in batches?
-  - [?] keep track of size.
+  - [ ] keep track of size.
   - [x] iterator type similar to red-black tree
     - [ ] get method.
   - [ ] migrate red-black tree tests
@@ -478,7 +478,11 @@ export class AvlTree<K, V> {
     })
     transaction.commit()
     // TODO: this should be persisted.
-    this.root = newRoot
+    return new AvlTree({
+      store: this.store,
+      compare: this.compare,
+      root: newRoot,
+    })
   }
 
   remove(key: K) {
@@ -490,7 +494,11 @@ export class AvlTree<K, V> {
       key,
     })
     // TODO: this should be persisted.
-    this.root = newRoot
+    return new AvlTree({
+      store: this.store,
+      compare: this.compare,
+      root: newRoot,
+    })
   }
 
   get(key: K) {
