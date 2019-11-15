@@ -3,9 +3,10 @@
 TODO
 - [x] make this thing immutable
 - [x] migrate the rest of the tests.
-  - [ ] better DevX with classes. how to distinguish writes in batches?
-  - [ ] keep track of size.
-  - [ ] iterator type similar to red-black tree
+  - [x] better DevX with classes. how to distinguish writes in batches?
+  - [?] keep track of size.
+  - [x] iterator type similar to red-black tree
+    - [ ] get method.
   - [ ] migrate red-black tree tests
     - [ ] immutablility tests
 - [ ] trampoline instead of recursion.
@@ -23,10 +24,9 @@ export interface AvlNode<K, V> {
   id: string
   leftId: string | undefined
   rightId: string | undefined
-  height: number
   key: K
   value: V
-  //  size: number // TODO
+  height: number // Used internally by the AVL algorithm
 }
 
 function clone<K, V>(node: AvlNode<K, V>): AvlNode<K, V> {
