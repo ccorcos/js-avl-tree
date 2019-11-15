@@ -18,10 +18,13 @@ TODO
   - [x] migrate red-black tree tests
     - [ ] immutablility tests
     - [x] transaction number of writes test.
-- [ ] trampoline instead of recursion.
+- [ ] iterative instead of recursion.
+  - [ ] insert
+  - [ ] remove
 - [x] cleanup vars
 - [ ] make it async
   - [ ] run against leveldb
+  - [ ] assemblyscript?
 - [ ] benchmark
 
 */
