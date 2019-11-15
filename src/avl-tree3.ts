@@ -9,12 +9,11 @@ TODO
 
   HERE
   - migrating custom-compare test to avl-tree3
-  - need to create better iterator ux
-    - find min, next
-    - find max, prev
-    - forEach
-
-    - [ ] get method.
+  - [x] need to create better iterator ux
+    - [x] find min, next
+    - [x] find max, prev
+    - [ ] forEach
+    - [x] get method.
     - [ ] for each method to iterate through the whole tree.
   - [ ] migrate red-black tree tests
     - [ ] immutablility tests
@@ -437,63 +436,6 @@ function maxNode<K, V>(args: {
   return current
 }
 
-export function get<K, V>(args: {
-  store: AvlNodeReadOnlyStore<K, V>
-  compare: Compare<K>
-  root: AvlNode<K, V> | undefined
-  key: K
-}): V | undefined {
-  const { store, root, compare, key } = args
-
-  if (root === undefined) {
-    return undefined
-  }
-
-  const result = compare(key, root.key)
-
-  if (result === 0) {
-    return root.value
-  }
-
-  if (result < 0) {
-    const left = store.get(root.leftId)
-    if (!left) {
-      return undefined
-    }
-    return get({ store, compare, key, root: left })
-  }
-
-  const right = store.get(root.rightId)
-  if (!right) {
-    return undefined
-  }
-  return get({ store, compare, key, root: right })
-}
-
-// function find(args: {
-//   store: AvlNodeReadOnlyStore<K, V>
-//   compare: Compare<K>
-//   root: AvlNode<K, V> | undefined
-//   key: K
-// }): Promise<RedBlackTreeIterator<K, V>> {
-//   let cmp = this.compare
-//   let n = await this.getRoot()
-//   let stack: Array<ReadOnlyNode<K, V>> = []
-//   while (n) {
-//     let d = cmp(key, n.key)
-//     stack.push(n)
-//     if (d === 0) {
-//       return new RedBlackTreeIterator({ tree: this, stack }, this.store)
-//     }
-//     if (d <= 0) {
-//       n = await n.getLeft()
-//     } else {
-//       n = await n.getRight()
-//     }
-//   }
-//   return new RedBlackTreeIterator({ tree: this, stack: [] }, this.store)
-// }
-
 /**
  * Represents how balanced a node's left and right children are.
  */
@@ -580,13 +522,72 @@ export class AvlTree<K, V> {
     })
   }
 
-  get(key: K) {
-    return get({
-      store: this.store,
-      compare: this.compare,
-      root: this.root,
-      key: key,
-    })
+  get(key: K): V | undefined {
+    const { store, root, compare } = this
+    let node = root
+    while (node) {
+      const direction = compare(key, node.key)
+      if (direction < 0) {
+        node = store.get(node.leftId)
+      } else if (direction > 0) {
+        node = store.get(node.rightId)
+      } else {
+        return node.value
+      }
+    }
+  }
+
+  find(key: K): AvlTreeIterator<K, V> | undefined {
+    let node = this.root
+    const stack: Array<AvlNode<K, V>> = []
+    while (node) {
+      const direction = this.compare(key, node.key)
+      stack.push(node)
+      if (direction === 0) {
+        return new AvlTreeIterator({ tree: this, stack })
+      }
+      if (direction <= 0) {
+        node = this.store.get(node.leftId)
+      } else {
+        node = this.store.get(node.rightId)
+      }
+    }
+  }
+
+  findMinimum(): AvlTreeIterator<K, V> | undefined {
+    let node = this.root
+    const stack: Array<AvlNode<K, V>> = []
+    while (node) {
+      stack.push(node)
+      node = this.store.get(node.leftId)
+    }
+    if (stack.length > 0) {
+      return new AvlTreeIterator({ tree: this, stack })
+    }
+  }
+
+  findMaximum(): AvlTreeIterator<K, V> | undefined {
+    let node = this.root
+    const stack: Array<AvlNode<K, V>> = []
+    while (node) {
+      stack.push(node)
+      node = this.store.get(node.leftId)
+    }
+    if (stack.length > 0) {
+      return new AvlTreeIterator({ tree: this, stack })
+    }
+  }
+
+  // This allows you to do forEach
+  *[Symbol.iterator]() {
+    let iter = this.findMinimum()
+    if (iter) {
+      yield iter.node
+      while (iter.hasNext) {
+        iter.next()
+        yield iter.node
+      }
+    }
   }
 
   // TODO: batch
@@ -604,16 +605,16 @@ export class AvlTreeIterator<K, V> {
   constructor(args: { tree: AvlTree<K, V>; stack: Array<AvlNode<K, V>> }) {
     this.tree = args.tree
     this.stack = args.stack
+    if (this.stack.length === 0) {
+      throw new Error("Iterator stack cannot be empty.")
+    }
   }
 
   /**
    * Node that the iterator is pointing to.
    */
   get node() {
-    if (this.stack.length > 0) {
-      return this.stack[this.stack.length - 1]
-    }
-    return undefined
+    return this.stack[this.stack.length - 1]
   }
 
   /**
@@ -629,41 +630,38 @@ export class AvlTreeIterator<K, V> {
   /**
    * Returns the position of the node this iterator is point to in the sorted list.
    */
-  // index() {
-  //   let idx = 0
-  //   let stack = this.stack
-  //   if (stack.length === 0) {
-  //     let r = this.tree.root
-  //     if (r) {
-  //       return r.count
-  //     }
-  //     return 0
-  //   } else {
-  //     const left = this.tree.store.get(stack[stack.length - 1].leftId)
-  //     if (left) {
-  //       idx = left.count
-  //     }
-  //   }
-  //   for (let s = stack.length - 2; s >= 0; --s) {
-  //     if (stack[s + 1].id === stack[s].rightId) {
-  //       ++idx
-  //       const left = this.tree.store.get(stack[s].leftId)
-  //       if (left) {
-  //         idx += left.count
-  //       }
-  //     }
-  //   }
-  //   return idx
-  // }
+  index() {
+    let idx = 0
+    let stack = this.stack
+    if (stack.length === 0) {
+      let r = this.tree.root
+      if (r) {
+        return r.count
+      }
+      return 0
+    } else {
+      const left = this.tree.store.get(stack[stack.length - 1].leftId)
+      if (left) {
+        idx = left.count
+      }
+    }
+    for (let s = stack.length - 2; s >= 0; --s) {
+      if (stack[s + 1].id === stack[s].rightId) {
+        ++idx
+        const left = this.tree.store.get(stack[s].leftId)
+        if (left) {
+          idx += left.count
+        }
+      }
+    }
+    return idx
+  }
 
   /**
    * Advances iterator to next element in list.
    */
   next() {
     let stack = this.stack
-    if (stack.length === 0) {
-      return
-    }
     let n: AvlNode<K, V> | undefined = stack[stack.length - 1]
     const right = this.tree.store.get(n.rightId)
     if (right) {
@@ -685,10 +683,7 @@ export class AvlTreeIterator<K, V> {
    * Moves iterator backward one element.
    */
   prev() {
-    let stack = this.stack
-    if (stack.length === 0) {
-      return
-    }
+    const stack = this.stack
     let n: AvlNode<K, V> | undefined = stack[stack.length - 1]
     const left = this.tree.store.get(n.leftId)
     if (left) {
@@ -710,10 +705,7 @@ export class AvlTreeIterator<K, V> {
    * Checks if iterator is at end of tree.
    */
   get hasNext() {
-    let stack = this.stack
-    if (stack.length === 0) {
-      return false
-    }
+    const stack = this.stack
     if (stack[stack.length - 1].rightId) {
       return true
     }
@@ -729,10 +721,7 @@ export class AvlTreeIterator<K, V> {
    * Checks if iterator is at start of tree.
    */
   get hasPrev() {
-    let stack = this.stack
-    if (stack.length === 0) {
-      return false
-    }
+    const stack = this.stack
     if (stack[stack.length - 1].leftId) {
       return true
     }
