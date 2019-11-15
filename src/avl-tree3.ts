@@ -571,7 +571,7 @@ export class AvlTree<K, V> {
     const stack: Array<AvlNode<K, V>> = []
     while (node) {
       stack.push(node)
-      node = this.store.get(node.leftId)
+      node = this.store.get(node.rightId)
     }
     if (stack.length > 0) {
       return new AvlTreeIterator({ tree: this, stack })
@@ -588,6 +588,13 @@ export class AvlTree<K, V> {
         yield iter.node
       }
     }
+  }
+
+  walk() {
+    return new AvlTreeWalker({
+      store: this.store,
+      node: this.root,
+    })
   }
 
   // TODO: batch
@@ -731,5 +738,45 @@ export class AvlTreeIterator<K, V> {
       }
     }
     return false
+  }
+}
+
+/**
+ * A helper method for walking a a tree.
+ */
+export class AvlTreeWalker<K, V> {
+  store: AvlNodeStore<K, V>
+  node: AvlNode<K, V> | undefined
+
+  constructor(args: {
+    store: AvlNodeStore<K, V>
+    node: AvlNode<K, V> | undefined
+  }) {
+    this.store = args.store
+    this.node = args.node
+  }
+
+  get left() {
+    if (this.node) {
+      const left = this.store.get(this.node.leftId)
+      if (left) {
+        return new AvlTreeWalker({
+          store: this.store,
+          node: left,
+        })
+      }
+    }
+  }
+
+  get right() {
+    if (this.node) {
+      const right = this.store.get(this.node.rightId)
+      if (right) {
+        return new AvlTreeWalker({
+          store: this.store,
+          node: right,
+        })
+      }
+    }
   }
 }
