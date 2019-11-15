@@ -18,21 +18,6 @@
 //   })
 // }
 
-// // function printTree<K, V>(tree: AvlNode<K, V> | undefined): any {
-// //   if (!tree) {
-// //     return []
-// //   }
-// //   return [
-// //     tree.key,
-// //     printTree(tree.getLeft()),
-// //     printTree(tree.getRight()),
-// //   ]
-// // }
-
-// // function print<K, V>(t: RedBlackTree<K, V>) {
-// //   console.log(util.inspect(printTree(t.getRoot()), { depth: 12 }))
-// // }
-
 // //Ensures the red black axioms are satisfied by tree
 // function checkTree<K, V>(tree: AvlTree<K, V>, t: ExecutionContext<unknown>) {
 //   const root = tree.root

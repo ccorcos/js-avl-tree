@@ -352,8 +352,8 @@ export function remove<K, V>(args: {
     leftCount({ transaction, node: newRoot }) +
     rightCount({ transaction, node: newRoot }) +
     1
-  var balanceState = getBalanceState({ transaction, node: newRoot })
 
+  var balanceState = getBalanceState({ transaction, node: newRoot })
   if (balanceState === BalanceState.UNBALANCED_LEFT) {
     const left = transaction.get(newRoot.leftId)
     if (!left) {
@@ -401,6 +401,7 @@ export function remove<K, V>(args: {
     }
   }
 
+  transaction.set(newRoot)
   return newRoot
 }
 
@@ -514,6 +515,7 @@ export class AvlTree<K, V> {
       root: this.root,
       key,
     })
+    transaction.commit()
     // TODO: this should be persisted.
     return new AvlTree({
       store: this.store,
@@ -779,4 +781,25 @@ export class AvlTreeWalker<K, V> {
       }
     }
   }
+}
+
+function printNode<K, V>(
+  node: AvlNode<K, V> | undefined,
+  store: AvlNodeReadOnlyStore<K, V>,
+  indent = ""
+): any {
+  if (!node) {
+    return
+  }
+  return [
+    indent + node.key,
+    printNode(store.get(node?.leftId), store, indent + "l:"),
+    printNode(store.get(node?.rightId), store, indent + "r:"),
+  ]
+    .filter(Boolean)
+    .join("\n")
+}
+
+export function printTree<K, V>(t: AvlTree<K, V>) {
+  return printNode(t.root, t.store)
 }
