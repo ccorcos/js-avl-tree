@@ -6,17 +6,18 @@ TODO
   - [x] better DevX with classes. how to distinguish writes in batches?
   - [x] keep track of size.
   - [x] iterator type similar to red-black tree
-  - [ ] migrating custom-compare test to avl-tree3
-    - [ ] better size tests for remove()
+  - [x] migrating custom-compare test to avl-tree3
+    - [x] better size tests for remove()
   - [x] need to create better iterator ux
     - [x] find min, next
     - [x] find max, prev
-    - [ ] invalid iterator length 0 after .next(). node is nullable!
-    - [ ] forEach
+    - [x] invalid iterator length 0 after .next(). node is nullable!
+    - [x] forEach
     - [x] get method.
-    - [ ] for each method to iterate through the whole tree.
-  - [ ] migrate red-black tree tests
+    - [x] for each method to iterate through the whole tree.
+  - [x] migrate red-black tree tests
     - [ ] immutablility tests
+    - [ ] transaction number of writes test.
 - [ ] trampoline instead of recursion.
 - [ ] cleanup vars
 - [ ] make it async

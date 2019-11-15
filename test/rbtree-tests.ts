@@ -2,16 +2,11 @@
 import test, { ExecutionContext } from "ava"
 import { AvlTree, AvlNode, AvlTreeIterator, printTree } from "../src/avl-tree"
 import { compare } from "../src/utils"
-import {
-  InMemoryKeyValueStore,
-  AvlNodeStore,
-  AvlNodeReadOnlyStore,
-} from "../src/storage"
+import { InMemoryKeyValueStore, AvlNodeStore } from "../src/storage"
 const iota = require("iota-array") as (n: number) => Array<number>
 
-const store = new AvlNodeStore<any, any>(new InMemoryKeyValueStore())
-
 function makeTree<K, V>() {
+  const store = new AvlNodeStore<any, any>(new InMemoryKeyValueStore())
   return new AvlTree<K, V>({
     compare: compare,
     root: undefined,
@@ -58,8 +53,26 @@ function checkTree<K, V>(tree: AvlTree<K, V>, t: ExecutionContext<unknown>) {
   checkNode(tree.root)
 }
 
+/**
+ * Checks that transactions are cleaning up properly.
+ */
+function checkStore<K, V>(
+  tree: AvlTree<K, V>,
+  ids: Array<string>,
+  t: ExecutionContext<unknown>
+) {
+  const keys = Object.keys(tree.store.store.map)
+  keys.sort()
+  ids = Array.from(new Set(ids))
+  ids.sort()
+  t.is(keys.length, ids.length)
+  t.deepEqual(keys, ids)
+}
+
 test("insert()", function(t) {
   var t1 = makeTree<number, boolean>()
+
+  const ids: Array<string> = []
 
   var u = t1
   var arr: Array<number> = []
@@ -71,7 +84,11 @@ test("insert()", function(t) {
     t.is(u.root?.count || 0, arr.length)
     arr.push(x)
     u = next
+    ids.push(...Array.from(u).map(({ id }) => id))
   }
+
+  checkStore(u, ids, t)
+
   for (var i = -20; i < 0; ++i) {
     var x = i
     var next = u.insert(x, true)
@@ -87,7 +104,10 @@ test("insert()", function(t) {
     t.is(ptr, arr.length)
     arr.push(x)
     u = next
+    ids.push(...Array.from(u).map(({ id }) => id))
   }
+
+  checkStore(u, ids, t)
 
   var start = u.begin()!
   for (var i = -20, j = 0; j <= 40; ++i, ++j) {

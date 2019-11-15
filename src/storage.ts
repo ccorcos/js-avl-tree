@@ -1,7 +1,7 @@
 import { AvlNode } from "./avl-tree"
 
 export class InMemoryKeyValueStore {
-  private map: Record<string, string> = {}
+  map: Record<string, string> = {}
   get(key: string) {
     return this.map[key]
   }
@@ -14,7 +14,7 @@ export class InMemoryKeyValueStore {
 }
 
 export class AvlNodeStore<K, V> {
-  constructor(private store: InMemoryKeyValueStore) {}
+  constructor(public store: InMemoryKeyValueStore) {}
 
   get(id: string | undefined): AvlNode<K, V> | undefined {
     if (id === undefined) {
@@ -25,9 +25,11 @@ export class AvlNodeStore<K, V> {
       return JSON.parse(result)
     }
   }
+
   set(node: AvlNode<K, V>) {
     this.store.set(node.id, JSON.stringify(node))
   }
+
   delete(id: string) {
     this.store.delete(id)
   }

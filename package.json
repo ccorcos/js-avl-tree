@@ -18,9 +18,11 @@
   },
   "homepage": "https://github.com/gwtw/js-avl-tree",
   "devDependencies": {
+    "@types/lodash": "^4.14.147",
     "@types/node": "^12.12.7",
     "ava": "^2.4.0",
     "iota-array": "^1.0.0",
+    "lodash": "^4.17.15",
     "prettier": "^1.19.1",
     "ts-node": "^8.5.2",
     "typescript": "^3.7.2"
