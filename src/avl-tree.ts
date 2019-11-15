@@ -11,6 +11,7 @@ TODO
   - [x] need to create better iterator ux
     - [x] find min, next
     - [x] find max, prev
+    - [ ] invalid iterator length 0 after .next(). node is nullable!
     - [ ] forEach
     - [x] get method.
     - [ ] for each method to iterate through the whole tree.
@@ -560,39 +561,153 @@ export class AvlTree<K, V> {
     }
   }
 
-  findMinimum(): AvlTreeIterator<K, V> | undefined {
+  begin(): AvlTreeIterator<K, V> {
     let node = this.root
     const stack: Array<AvlNode<K, V>> = []
     while (node) {
       stack.push(node)
       node = this.store.get(node.leftId)
     }
-    if (stack.length > 0) {
-      return new AvlTreeIterator({ tree: this, stack })
-    }
+    return new AvlTreeIterator({ tree: this, stack })
   }
 
-  findMaximum(): AvlTreeIterator<K, V> | undefined {
+  end(): AvlTreeIterator<K, V> {
     let node = this.root
     const stack: Array<AvlNode<K, V>> = []
     while (node) {
       stack.push(node)
       node = this.store.get(node.rightId)
     }
-    if (stack.length > 0) {
-      return new AvlTreeIterator({ tree: this, stack })
+    return new AvlTreeIterator({ tree: this, stack })
+  }
+
+  /**
+   * Find the nth item in the tree.
+   */
+  at(idx: number): AvlTreeIterator<K, V> {
+    const root = this.root
+    if (idx < 0 || !root) {
+      return new AvlTreeIterator({ tree: this, stack: [] })
     }
+    let node = root
+    const stack: Array<AvlNode<K, V>> = []
+    while (true) {
+      stack.push(node)
+      const left = this.store.get(node.leftId)
+      if (left) {
+        if (idx < left.count) {
+          node = left
+          continue
+        }
+        idx -= left.count
+      }
+      if (!idx) {
+        return new AvlTreeIterator({ tree: this, stack: stack })
+      }
+      idx -= 1
+      const right = this.store.get(node.rightId)
+      if (right) {
+        if (idx >= right.count) {
+          break
+        }
+        node = right
+      } else {
+        break
+      }
+    }
+    return new AvlTreeIterator({ tree: this, stack: [] })
+  }
+
+  ge(key: K): AvlTreeIterator<K, V> {
+    let node = this.root
+    const stack: Array<AvlNode<K, V>> = []
+    let last_ptr = 0
+    while (node) {
+      let direction = this.compare(key, node.key)
+      stack.push(node)
+      if (direction <= 0) {
+        last_ptr = stack.length
+      }
+      if (direction <= 0) {
+        node = this.store.get(node.leftId)
+      } else {
+        node = this.store.get(node.rightId)
+      }
+    }
+    // TODO: this feels sketchy
+    stack.length = last_ptr
+    return new AvlTreeIterator({ tree: this, stack })
+  }
+
+  gt(key: K): AvlTreeIterator<K, V> {
+    let node = this.root
+    const stack: Array<AvlNode<K, V>> = []
+    let last_ptr = 0
+    while (node) {
+      let direction = this.compare(key, node.key)
+      stack.push(node)
+      if (direction < 0) {
+        last_ptr = stack.length
+      }
+      if (direction < 0) {
+        node = this.store.get(node.leftId)
+      } else {
+        node = this.store.get(node.rightId)
+      }
+    }
+    // TODO: this feels sketchy
+    stack.length = last_ptr
+    return new AvlTreeIterator({ tree: this, stack })
+  }
+
+  lt(key: K): AvlTreeIterator<K, V> {
+    let node = this.root
+    const stack: Array<AvlNode<K, V>> = []
+    let last_ptr = 0
+    while (node) {
+      let direction = this.compare(key, node.key)
+      stack.push(node)
+      if (direction > 0) {
+        last_ptr = stack.length
+      }
+      if (direction <= 0) {
+        node = this.store.get(node.leftId)
+      } else {
+        node = this.store.get(node.rightId)
+      }
+    }
+    // TODO: this feels sketchy
+    stack.length = last_ptr
+    return new AvlTreeIterator({ tree: this, stack })
+  }
+
+  le(key: K): AvlTreeIterator<K, V> {
+    let node = this.root
+    const stack: Array<AvlNode<K, V>> = []
+    let last_ptr = 0
+    while (node) {
+      let direction = this.compare(key, node.key)
+      stack.push(node)
+      if (direction >= 0) {
+        last_ptr = stack.length
+      }
+      if (direction < 0) {
+        node = this.store.get(node.leftId)
+      } else {
+        node = this.store.get(node.rightId)
+      }
+    }
+    // TODO: this feels sketchy
+    stack.length = last_ptr
+    return new AvlTreeIterator({ tree: this, stack })
   }
 
   // This allows you to do forEach
   *[Symbol.iterator]() {
-    let iter = this.findMinimum()
-    if (iter) {
-      yield iter.node
-      while (iter.hasNext) {
-        iter.next()
-        yield iter.node
-      }
+    let iter = this.begin()
+    while (iter.valid) {
+      yield iter.node!
+      iter.next()
     }
   }
 
@@ -618,16 +733,15 @@ export class AvlTreeIterator<K, V> {
   constructor(args: { tree: AvlTree<K, V>; stack: Array<AvlNode<K, V>> }) {
     this.tree = args.tree
     this.stack = args.stack
-    if (this.stack.length === 0) {
-      throw new Error("Iterator stack cannot be empty.")
-    }
   }
 
   /**
    * Node that the iterator is pointing to.
    */
   get node() {
-    return this.stack[this.stack.length - 1]
+    if (this.stack.length > 0) {
+      return this.stack[this.stack.length - 1]
+    }
   }
 
   /**
@@ -675,6 +789,9 @@ export class AvlTreeIterator<K, V> {
    */
   next() {
     let stack = this.stack
+    if (stack.length === 0) {
+      throw new Error("Invalid iterator")
+    }
     let n: AvlNode<K, V> | undefined = stack[stack.length - 1]
     const right = this.tree.store.get(n.rightId)
     if (right) {
@@ -697,6 +814,9 @@ export class AvlTreeIterator<K, V> {
    */
   prev() {
     const stack = this.stack
+    if (stack.length === 0) {
+      throw new Error("Invalid iterator")
+    }
     let n: AvlNode<K, V> | undefined = stack[stack.length - 1]
     const left = this.tree.store.get(n.leftId)
     if (left) {
@@ -719,6 +839,9 @@ export class AvlTreeIterator<K, V> {
    */
   get hasNext() {
     const stack = this.stack
+    if (stack.length === 0) {
+      return false
+    }
     if (stack[stack.length - 1].rightId) {
       return true
     }
@@ -735,6 +858,9 @@ export class AvlTreeIterator<K, V> {
    */
   get hasPrev() {
     const stack = this.stack
+    if (stack.length === 0) {
+      return false
+    }
     if (stack[stack.length - 1].leftId) {
       return true
     }
@@ -744,6 +870,10 @@ export class AvlTreeIterator<K, V> {
       }
     }
     return false
+  }
+
+  get valid() {
+    return this.stack.length !== 0
   }
 }
 

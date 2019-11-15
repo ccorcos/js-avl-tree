@@ -16,5 +16,5 @@ test("should return the minimum key in the tree", function(t) {
   tree = tree.insert(1, undefined)
   tree = tree.insert(4, undefined)
   tree = tree.insert(2, undefined)
-  t.is(tree.findMinimum()?.node.key, 1)
+  t.is(tree.begin().node?.key, 1)
 })
