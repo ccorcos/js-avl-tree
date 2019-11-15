@@ -1,11 +1,19 @@
 import test from "ava"
-import { AvlTree } from "../src/avl-tree"
+import { AvlTree } from "../src/avl-tree3"
+import { InMemoryKeyValueStore, AvlNodeStore } from "../src/storage"
+import { compare } from "../src/utils"
+
+const store = new AvlNodeStore<any, any>(new InMemoryKeyValueStore())
 
 test("should return whether the tree is empty", function(t) {
-  var tree = new AvlTree<number, number>()
-  t.true(tree.isEmpty())
-  tree.insert(1, 1)
-  t.false(tree.isEmpty())
-  tree.delete(1)
-  t.true(tree.isEmpty())
+  let tree = new AvlTree<number, number>({
+    store: store,
+    root: undefined,
+    compare: compare,
+  })
+  t.is(tree.root, undefined)
+  tree = tree.insert(1, 1)
+  t.assert(tree.root)
+  tree = tree.remove(1)
+  t.is(tree.root, undefined)
 })

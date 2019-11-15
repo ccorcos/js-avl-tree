@@ -6,9 +6,8 @@ TODO
   - [x] better DevX with classes. how to distinguish writes in batches?
   - [x] keep track of size.
   - [x] iterator type similar to red-black tree
-
-  HERE
-  - migrating custom-compare test to avl-tree3
+  - [ ] migrating custom-compare test to avl-tree3
+    - [ ] better size tests for remove()
   - [x] need to create better iterator ux
     - [x] find min, next
     - [x] find max, prev
