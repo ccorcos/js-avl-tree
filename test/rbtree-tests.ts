@@ -1,4 +1,5 @@
 // These tests were adopted from `functional-red-black-tree` which are pretty exhaustive.
+import * as _ from "lodash"
 import test, { ExecutionContext } from "ava"
 import { AvlTree, AvlNode, AvlTreeIterator, printTree } from "../src/avl-tree"
 import { compare } from "../src/utils"
@@ -589,6 +590,21 @@ test("slab-sequence-2", function(t) {
   u = u.remove(22)
   checkTree(u, t)
   ids.push(...Array.from(u).map(({ id }) => id))
-
   checkStore(u, ids, t)
+})
+
+// This test will be different every time, but its a nice way to gain confidence.
+// However, if it fails, good luck figuring out why!
+test("randomness", function(t) {
+  for (let i = 0; i < 10; i++) {
+    var u = makeTree<number, number>()
+    const ids: Array<string> = []
+    const numbers = _.shuffle(_.range(100))
+    for (const n of numbers) {
+      u = u.insert(n, n)
+      checkTree(u, t)
+      ids.push(...Array.from(u).map(({ id }) => id))
+    }
+    checkStore(u, ids, t)
+  }
 })
