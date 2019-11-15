@@ -259,7 +259,7 @@ export function remove<K, V>(args: {
     if (left) {
       transaction.cleanup(left)
     }
-    newRoot.leftId = newLeft ? newLeft.id : undefined
+    newRoot.leftId = newLeft?.id
   } else if (compare(key, newRoot.key) > 0) {
     // The key to be deleted is in the right sub-tree
     const right = transaction.get(newRoot.rightId)
@@ -267,7 +267,7 @@ export function remove<K, V>(args: {
     if (right) {
       transaction.cleanup(right)
     }
-    newRoot.rightId = newRight ? newRight.id : undefined
+    newRoot.rightId = newRight?.id
   } else {
     // root is the node to be deleted
     const left = transaction.get(newRoot.leftId)
@@ -288,7 +288,7 @@ export function remove<K, V>(args: {
       newRoot.value = inOrderSuccessor.value
       const newRight = remove({ transaction, compare, root: right, key })
       transaction.cleanup(right)
-      newRoot.rightId = newRight ? newRight.id : undefined
+      newRoot.rightId = newRight?.id
     }
   }
 
@@ -453,22 +453,18 @@ function getBalanceState<K, V>(args: {
  * A convenient abstraction that isn't quite so functional.
  */
 export class AvlTree<K, V> {
-  private store: AvlNodeStore<K, V>
-  private rootId: string | undefined
-  private compare: Compare<K>
+  store: AvlNodeStore<K, V>
+  root: AvlNode<K, V> | undefined
+  compare: Compare<K>
 
   constructor(args: {
     store: AvlNodeStore<K, V>
-    rootId: string | undefined
+    root: AvlNode<K, V> | undefined
     compare: Compare<K>
   }) {
     this.store = args.store
-    this.rootId = args.rootId
+    this.root = args.root
     this.compare = args.compare
-  }
-
-  getRoot() {
-    return this.store.get(this.rootId)
   }
 
   insert(key: K, value: V) {
@@ -476,13 +472,13 @@ export class AvlTree<K, V> {
     const newRoot = insert({
       transaction,
       compare: this.compare,
+      root: this.root,
       key: key,
       value: value,
-      root: transaction.get(this.rootId),
     })
     transaction.commit()
     // TODO: this should be persisted.
-    this.rootId = newRoot.id
+    this.root = newRoot
   }
 
   remove(key: K) {
@@ -490,22 +486,174 @@ export class AvlTree<K, V> {
     const newRoot = remove({
       transaction,
       compare: this.compare,
-      root: transaction.get(this.rootId),
+      root: this.root,
       key,
     })
     // TODO: this should be persisted.
-    this.rootId = newRoot ? newRoot.id : undefined
+    this.root = newRoot
   }
 
   get(key: K) {
     return get({
       store: this.store,
       compare: this.compare,
-      root: this.store.get(this.rootId),
+      root: this.root,
       key: key,
     })
   }
 
   // TODO: batch
   // TODO: scan
+}
+
+/**
+ * Represents a path into an `AvlTreeIterator` with helpful methods for
+ * traversing the tree.
+ */
+export class AvlTreeIterator<K, V> {
+  tree: AvlTree<K, V>
+  stack: Array<AvlNode<K, V>>
+
+  constructor(args: { tree: AvlTree<K, V>; stack: Array<AvlNode<K, V>> }) {
+    this.tree = args.tree
+    this.stack = args.stack
+  }
+
+  /**
+   * Node that the iterator is pointing to.
+   */
+  get node() {
+    if (this.stack.length > 0) {
+      return this.stack[this.stack.length - 1]
+    }
+    return undefined
+  }
+
+  /**
+   * Makes a copy of an iterator.
+   */
+  clone(): AvlTreeIterator<K, V> {
+    return new AvlTreeIterator({
+      tree: this.tree,
+      stack: [...this.stack],
+    })
+  }
+
+  /**
+   * Returns the position of the node this iterator is point to in the sorted list.
+   */
+  // index() {
+  //   let idx = 0
+  //   let stack = this.stack
+  //   if (stack.length === 0) {
+  //     let r = this.tree.root
+  //     if (r) {
+  //       return r.count
+  //     }
+  //     return 0
+  //   } else {
+  //     const left = this.tree.store.get(stack[stack.length - 1].leftId)
+  //     if (left) {
+  //       idx = left.count
+  //     }
+  //   }
+  //   for (let s = stack.length - 2; s >= 0; --s) {
+  //     if (stack[s + 1].id === stack[s].rightId) {
+  //       ++idx
+  //       const left = this.tree.store.get(stack[s].leftId)
+  //       if (left) {
+  //         idx += left.count
+  //       }
+  //     }
+  //   }
+  //   return idx
+  // }
+
+  /**
+   * Advances iterator to next element in list.
+   */
+  next() {
+    let stack = this.stack
+    if (stack.length === 0) {
+      return
+    }
+    let n: AvlNode<K, V> | undefined = stack[stack.length - 1]
+    const right = this.tree.store.get(n.rightId)
+    if (right) {
+      n = right
+      while (n) {
+        stack.push(n)
+        n = this.tree.store.get(n.leftId)
+      }
+    } else {
+      stack.pop()
+      while (stack.length > 0 && stack[stack.length - 1].rightId === n.id) {
+        n = stack[stack.length - 1]
+        stack.pop()
+      }
+    }
+  }
+
+  /**
+   * Moves iterator backward one element.
+   */
+  prev() {
+    let stack = this.stack
+    if (stack.length === 0) {
+      return
+    }
+    let n: AvlNode<K, V> | undefined = stack[stack.length - 1]
+    const left = this.tree.store.get(n.leftId)
+    if (left) {
+      n = left
+      while (n) {
+        stack.push(n)
+        n = this.tree.store.get(n.rightId)
+      }
+    } else {
+      stack.pop()
+      while (stack.length > 0 && stack[stack.length - 1].leftId === n.id) {
+        n = stack[stack.length - 1]
+        stack.pop()
+      }
+    }
+  }
+
+  /**
+   * Checks if iterator is at end of tree.
+   */
+  get hasNext() {
+    let stack = this.stack
+    if (stack.length === 0) {
+      return false
+    }
+    if (stack[stack.length - 1].rightId) {
+      return true
+    }
+    for (let s = stack.length - 1; s > 0; --s) {
+      if (stack[s - 1].leftId === stack[s].id) {
+        return true
+      }
+    }
+    return false
+  }
+
+  /**
+   * Checks if iterator is at start of tree.
+   */
+  get hasPrev() {
+    let stack = this.stack
+    if (stack.length === 0) {
+      return false
+    }
+    if (stack[stack.length - 1].leftId) {
+      return true
+    }
+    for (let s = stack.length - 1; s > 0; --s) {
+      if (stack[s - 1].rightId === stack[s].id) {
+        return true
+      }
+    }
+    return false
+  }
 }
