@@ -7,8 +7,9 @@ TODO
   - [ ] keep track of size.
   - [ ] iterator type similar to red-black tree
   - [ ] migrate red-black tree tests
-  - [ ] immutablility tests
--  [ ] cleanup vars
+    - [ ] immutablility tests
+- [ ] trampoline instead of recursion.
+- [ ] cleanup vars
 - [ ] make it async
   - [ ] run against leveldb
 - [ ] benchmark
@@ -504,4 +505,7 @@ export class AvlTree<K, V> {
       key: key,
     })
   }
+
+  // TODO: batch
+  // TODO: scan
 }
