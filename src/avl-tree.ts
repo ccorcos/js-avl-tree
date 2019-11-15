@@ -335,7 +335,12 @@ export function remove<K, V>(args: {
       var inOrderSuccessor = minNode({ transaction, root: right })
       newRoot.key = inOrderSuccessor.key
       newRoot.value = inOrderSuccessor.value
-      const newRight = remove({ transaction, compare, root: right, key })
+      const newRight = remove({
+        transaction,
+        compare,
+        root: right,
+        key: inOrderSuccessor.key,
+      })
       transaction.cleanup(right)
       newRoot.rightId = newRight?.id
     }
@@ -791,7 +796,7 @@ function printNode<K, V>(
     return
   }
   return [
-    indent + node.key,
+    indent + node.key + "(" + node.count + ")",
     printNode(store.get(node?.leftId), store, indent + "l:"),
     printNode(store.get(node?.rightId), store, indent + "r:"),
   ]
