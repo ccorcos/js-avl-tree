@@ -1,13 +1,17 @@
 /*
 
 TODO
-- make this thing immutable
-- migrate the rest of the tests.
-  - better DevX?
-  - immutablility tests
-- cleanup var
-- make it async
-- benchmark
+- [x] make this thing immutable
+- [x] migrate the rest of the tests.
+  - [ ] better DevX with classes. how to distinguish writes in batches?
+  - [ ] keep track of size.
+  - [ ] iterator type similar to red-black tree
+  - [ ] migrate red-black tree tests
+  - [ ] immutablility tests
+-  [ ] cleanup vars
+- [ ] make it async
+  - [ ] run against leveldb
+- [ ] benchmark
 
 */
 
