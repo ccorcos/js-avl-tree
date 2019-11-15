@@ -1,112 +1,113 @@
-// import test, { ExecutionContext } from "ava"
-// import { AvlTree, AvlNode } from "../src/avl-tree3"
-// import { compare } from "../src/utils"
-// import {
-//   InMemoryKeyValueStore,
-//   AvlNodeStore,
-//   AvlNodeReadOnlyStore,
-// } from "../src/storage"
-// const iota = require("iota-array") as (n: number) => Array<number>
+// These tests were adopted from `functional-red-black-tree` which are pretty exhaustive.
+import test, { ExecutionContext } from "ava"
+import { AvlTree, AvlNode } from "../src/avl-tree"
+import { compare } from "../src/utils"
+import {
+  InMemoryKeyValueStore,
+  AvlNodeStore,
+  AvlNodeReadOnlyStore,
+} from "../src/storage"
+const iota = require("iota-array") as (n: number) => Array<number>
 
-// const store = new AvlNodeStore<any, any>(new InMemoryKeyValueStore())
+const store = new AvlNodeStore<any, any>(new InMemoryKeyValueStore())
 
-// function makeTree<K, V>() {
-//   return new AvlTree<K, V>({
-//     compare: compare,
-//     root: undefined,
-//     store: store,
-//   })
-// }
+function makeTree<K, V>() {
+  return new AvlTree<K, V>({
+    compare: compare,
+    root: undefined,
+    store: store,
+  })
+}
 
-// //Ensures the red black axioms are satisfied by tree
-// function checkTree<K, V>(tree: AvlTree<K, V>, t: ExecutionContext<unknown>) {
-//   const root = tree.root
-//   if (!root) {
-//     return
-//   }
+//Ensures the red black axioms are satisfied by tree
+function checkTree<K, V>(tree: AvlTree<K, V>, t: ExecutionContext<unknown>) {
+  const root = tree.root
+  if (!root) {
+    return
+  }
 
-//   function checkNode(node: AvlNode<K, V> | undefined): number {
-//     if (!node) {
-//       return 0 // return the size.
-//     }
-//     const left = tree.store.get(node.leftId)
-//     const right = tree.store.get(node.rightId)
+  function checkNode(node: AvlNode<K, V> | undefined): number {
+    if (!node) {
+      return 0 // return the size.
+    }
+    const left = tree.store.get(node.leftId)
+    const right = tree.store.get(node.rightId)
 
-//     if (left) {
-//       t.assert(
-//         tree.compare(left.key, node.key) <= 0,
-//         "left tree order invariant"
-//       )
-//     }
-//     if (right) {
-//       t.assert(
-//         tree.compare(right.key, node.key) >= 0,
-//         "right tree order invariant"
-//       )
-//     }
-//     const leftCount = checkNode(left)
-//     const rightCount = checkNode(right)
+    if (left) {
+      t.assert(
+        tree.compare(left.key, node.key) <= 0,
+        "left tree order invariant"
+      )
+    }
+    if (right) {
+      t.assert(
+        tree.compare(right.key, node.key) >= 0,
+        "right tree order invariant"
+      )
+    }
+    const leftCount = checkNode(left)
+    const rightCount = checkNode(right)
 
-//     t.assert((left?.count || 0) === leftCount, "left count")
-//     t.assert((right?.count || 0) === rightCount, "left count")
-//     t.assert(node.count === leftCount + rightCount, "total count")
+    t.is(left?.count || 0, leftCount, "left count")
+    t.is(right?.count || 0, rightCount, "left count")
+    t.is(node.count, leftCount + rightCount + 1, "total count")
 
-//     return leftCount + rightCount + 1
-//   }
+    return leftCount + rightCount + 1
+  }
 
-//   checkNode(tree.root)
-// }
+  checkNode(tree.root)
+}
 
-// test("insert()", function(t) {
-//   var t1 = makeTree<number, boolean>()
+test("insert()", function(t) {
+  var t1 = makeTree<number, boolean>()
 
-//   var u = t1
-//   var arr: Array<number> = []
-//   for (var i = 20; i >= 0; --i) {
-//     var x = i
-//     var next = u.insert(x, true)
-//     checkTree(u, t)
-//     checkTree(next, t)
-//     t.is(u.root!.count, arr.length)
-//     arr.push(x)
-//     u = next
-//   }
-//   for (var i = -20; i < 0; ++i) {
-//     var x = i
-//     var next = u.insert(x, true)
-//     checkTree(u, t)
-//     checkTree(next, t)
-//     arr.sort(function(a, b) {
-//       return a - b
-//     })
-//     var ptr = 0
-//     u.forEach(function(k, v) {
-//       t.equals(k, arr[ptr++])
-//     })
-//     t.equals(ptr, arr.length)
-//     arr.push(x)
-//     u = next
-//   }
+  var u = t1
+  var arr: Array<number> = []
+  for (var i = 20; i >= 0; --i) {
+    var x = i
+    var next = u.insert(x, true)
+    checkTree(u, t)
+    checkTree(next, t)
+    t.is(u.root?.count || 0, arr.length)
+    arr.push(x)
+    u = next
+  }
+  for (var i = -20; i < 0; ++i) {
+    var x = i
+    var next = u.insert(x, true)
+    checkTree(u, t)
+    checkTree(next, t)
+    arr.sort(function(a, b) {
+      return a - b
+    })
+    var ptr = 0
+    for (const { key } of u) {
+      t.is(key, arr[ptr++])
+    }
+    t.is(ptr, arr.length)
+    arr.push(x)
+    u = next
+  }
 
-//   var start = u.begin()
-//   for (var i = -20, j = 0; j <= 40; ++i, ++j) {
-//     t.equals(u.at(j).key, i, "checking at()")
-//     t.equals(start.key, i, "checking iter")
-//     t.equals(start.index(), j, "checking index")
-//     t.assert(start.valid, "checking valid")
-//     if (j < 40) {
-//       t.assert(start.hasNext, "hasNext()")
-//     } else {
-//       t.assert(!start.hasNext, "eof hasNext()")
-//     }
-//     start.next()
-//   }
-//   t.assert(!start.valid, "invalid eof iterator")
-//   t.assert(!start.hasNext, "hasNext() at eof fail")
-//   t.equals(start.index(), 41, "eof index")
+  // var start = u.begin()
+  // for (var i = -20, j = 0; j <= 40; ++i, ++j) {
+  //   t.equals(u.at(j).key, i, "checking at()")
+  //   t.equals(start.key, i, "checking iter")
+  //   t.equals(start.index(), j, "checking index")
+  //   t.assert(start.valid, "checking valid")
+  //   if (j < 40) {
+  //     t.assert(start.hasNext, "hasNext()")
+  //   } else {
+  //     t.assert(!start.hasNext, "eof hasNext()")
+  //   }
+  //   start.next()
+  // }
+  // t.assert(!start.valid, "invalid eof iterator")
+  // t.assert(!start.hasNext, "hasNext() at eof fail")
+  // t.equals(start.index(), 41, "eof index")
 
-//   t.end()
-// })
+  // t.end()
+})
 
 // tape("foreach", function(t) {
 //   var u = iota(31).reduce(function(u, k, v) {
