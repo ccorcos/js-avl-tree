@@ -1,6 +1,6 @@
 // These tests were adopted from `functional-red-black-tree` which are pretty exhaustive.
 import test, { ExecutionContext } from "ava"
-import { AvlTree, AvlNode, AvlTreeIterator } from "../src/avl-tree"
+import { AvlTree, AvlNode, AvlTreeIterator, printTree } from "../src/avl-tree"
 import { compare } from "../src/utils"
 import {
   InMemoryKeyValueStore,
@@ -233,183 +233,275 @@ test("keys and values", function(t) {
   )
 })
 
-// test("searching", function(t) {
-//   var arr = [0, 1, 1, 1, 1, 2, 3, 4, 5, 6, 6]
-//   var u = arr.reduce(function(u, k, v) {
-//     return u.insert(k, v)
-//   }, makeTree<number, number>())
+test("searching", function(t) {
+  var arr = [0, 1, 1, 1, 1, 2, 3, 4, 5, 6, 6]
+  var u = arr.reduce(function(u, k, v) {
+    return u.insert(k, v)
+  }, makeTree<number, number>())
 
-//   for (var i = 0; i < arr.length; ++i) {
-//     if (arr[i] !== arr[i - 1] && arr[i] !== arr[i + 1]) {
-//       t.is(u.get(arr[i]), i, "get " + arr[i])
-//     }
-//   }
-//   t.is(u.get(-1), undefined, "get missing")
+  for (var i = 0; i < arr.length; ++i) {
+    if (arr[i] !== arr[i - 1] && arr[i] !== arr[i + 1]) {
+      t.is(u.get(arr[i]), i, "get " + arr[i])
+    }
+  }
+  t.is(u.get(-1), undefined, "get missing")
 
-//   t.is(u.ge(3).index(), 6, "ge simple")
-//   t.is(u.ge(0.9).index(), 1, "ge run start")
-//   t.is(u.ge(1).index(), 1, "ge run mid")
-//   t.is(u.ge(1.1).index(), 5, "ge run end")
-//   t.is(u.ge(0).index(), 0, "ge first")
-//   t.is(u.ge(6).index(), 9, "ge last")
-//   t.is(u.ge(100).valid, false, "ge big")
-//   t.is(u.ge(-1).index(), 0, "ge small")
+  t.is(u.ge(3).index(), 3, "ge simple")
+  t.is(u.ge(0.9).index(), 1, "ge run start")
+  t.is(u.ge(1).index(), 1, "ge run mid")
+  t.is(u.ge(1.1).index(), 2, "ge run end")
+  t.is(u.ge(0).index(), 0, "ge first")
+  t.is(u.ge(6).index(), 6, "ge last")
+  t.is(u.ge(100).valid, false, "ge big")
+  t.is(u.ge(-1).index(), 0, "ge small")
 
-//   t.is(u.gt(3).index(), 7, "gt simple")
-//   t.is(u.gt(0.9).index(), 1, "gt run start")
-//   t.is(u.gt(1).index(), 5, "gt run mid")
-//   t.is(u.gt(1.1).index(), 5, "gt run end")
-//   t.is(u.gt(0).index(), 1, "gt first")
-//   t.is(u.gt(6).valid, false, "gt last")
-//   t.is(u.gt(100).valid, false, "gt big")
-//   t.is(u.gt(-1).index(), 0, "ge small")
+  t.is(u.gt(3).index(), 4, "gt simple")
+  t.is(u.gt(0.9).index(), 1, "gt run start")
+  t.is(u.gt(1).index(), 2, "gt run mid")
+  t.is(u.gt(1.1).index(), 2, "gt run end")
+  t.is(u.gt(0).index(), 1, "gt first")
+  t.is(u.gt(6).valid, false, "gt last")
+  t.is(u.gt(100).valid, false, "gt big")
+  t.is(u.gt(-1).index(), 0, "ge small")
 
-//   t.is(u.le(3).index(), 6, "le simple")
-//   t.is(u.le(0.9).index(), 0, "le run start")
-//   t.is(u.le(1).index(), 4, "le run mid")
-//   t.is(u.le(1.1).index(), 4, "le run end")
-//   t.is(u.le(0).index(), 0, "le first")
-//   t.is(u.le(6).index(), 10, "le last")
-//   t.is(u.le(100).index(), 10, "le big")
-//   t.is(u.le(-1).valid, false, "le small")
+  t.is(u.le(3).index(), 3, "le simple")
+  t.is(u.le(0.9).index(), 0, "le run start")
+  t.is(u.le(1).index(), 1, "le run mid")
+  t.is(u.le(1.1).index(), 1, "le run end")
+  t.is(u.le(0).index(), 0, "le first")
+  t.is(u.le(6).index(), 6, "le last")
+  t.is(u.le(100).index(), 6, "le big")
+  t.is(u.le(-1).valid, false, "le small")
 
-//   t.is(u.lt(3).index(), 5, "lt simple")
-//   t.is(u.lt(0.9).index(), 0, "lt run start")
-//   t.is(u.lt(1).index(), 0, "lt run mid")
-//   t.is(u.lt(1.1).index(), 4, "lt run end")
-//   t.is(u.lt(0).valid, false, "lt first")
-//   t.is(u.lt(6).index(), 8, "lt last")
-//   t.is(u.lt(100).index(), 10, "lt big")
-//   t.is(u.lt(-1).valid, false, "lt small")
+  t.is(u.lt(3).index(), 2, "lt simple")
+  t.is(u.lt(0.9).index(), 0, "lt run start")
+  t.is(u.lt(1).index(), 0, "lt run mid")
+  t.is(u.lt(1.1).index(), 1, "lt run end")
+  t.is(u.lt(0).valid, false, "lt first")
+  t.is(u.lt(6).index(), 5, "lt last")
+  t.is(u.lt(100).index(), 6, "lt big")
+  t.is(u.lt(-1).valid, false, "lt small")
 
-//   t.is(u.find(-1).valid, false, "find missing small")
-//   t.is(u.find(10000).valid, false, "find missing big")
-//   t.is(u.find(3).index(), 6, "find simple")
-//   t.assert(u.find(1).index() > 0, "find repeat")
-//   t.assert(u.find(1).index() < 5, "find repeat")
+  t.is(u.find(-1).valid, false, "find missing small")
+  t.is(u.find(10000).valid, false, "find missing big")
+  t.is(u.find(3).index(), 3, "find simple")
+  t.assert(u.find(1).index() > 0, "find repeat")
+  t.assert(u.find(1).index() < 5, "find repeat")
 
-//   for (var i = 0; i < arr.length; ++i) {
-//     t.is(u.find(arr[i]).node?.key, arr[i], "find " + i)
-//   }
+  for (var i = 0; i <= 6; ++i) {
+    t.is(u.find(i).node?.key, i, "find " + i)
+  }
 
-//   for (var i = 0; i < arr.length; ++i) {
-//     t.is(u.at(i).node?.key, arr[i], "at " + i)
-//   }
-//   t.is(u.at(-1).valid, false, "at missing small")
-//   t.is(u.at(1000).valid, false, "at missing big")
-// })
+  for (var i = 0; i <= 6; ++i) {
+    t.is(u.at(i).node?.key, i, "at " + i)
+  }
+  t.is(u.at(-1).valid, false, "at missing small")
+  t.is(u.at(1000).valid, false, "at missing big")
+})
 
-// test("slab-sequence", function(t) {
-//   var tree = makeTree<number, number>()
+test("slab-sequence", function(t) {
+  var tree = makeTree<number, number>()
 
-//   tree = tree.insert(0, 0)
-//   checkTree(tree, t)
-//   t.deepEqual(tree.values(), [0])
+  tree = tree.insert(0, 0)
+  checkTree(tree, t)
+  t.deepEqual(
+    Array.from(tree).map(n => n.value),
+    [0]
+  )
 
-//   tree = tree.insert(1, 1)
-//   checkTree(tree, t)
-//   t.deepEqual(tree.values(), [0, 1])
+  tree = tree.insert(1, 1)
+  checkTree(tree, t)
+  t.deepEqual(
+    Array.from(tree).map(n => n.value),
+    [0, 1]
+  )
 
-//   tree = tree.insert(0.5, 2)
-//   checkTree(tree, t)
-//   t.deepEqual(tree.values(), [0, 2, 1])
+  tree = tree.insert(0.5, 2)
+  checkTree(tree, t)
+  t.deepEqual(
+    Array.from(tree).map(n => n.value),
+    [0, 2, 1]
+  )
 
-//   tree = tree.insert(0.25, 3)
-//   checkTree(tree, t)
-//   t.deepEqual(tree.values(), [0, 3, 2, 1])
+  tree = tree.insert(0.25, 3)
+  checkTree(tree, t)
+  t.deepEqual(
+    Array.from(tree).map(n => n.value),
+    [0, 3, 2, 1]
+  )
 
-//   tree = tree.remove(0)
-//   checkTree(tree, t)
-//   t.deepEqual(tree.values(), [3, 2, 1])
+  tree = tree.remove(0)
+  checkTree(tree, t)
+  t.deepEqual(
+    Array.from(tree).map(n => n.value),
+    [3, 2, 1]
+  )
 
-//   tree = tree.insert(0.375, 4)
-//   checkTree(tree, t)
-//   t.deepEqual(tree.values(), [3, 4, 2, 1])
+  tree = tree.insert(0.375, 4)
+  checkTree(tree, t)
+  t.deepEqual(
+    Array.from(tree).map(n => n.value),
+    [3, 4, 2, 1]
+  )
 
-//   tree = tree.remove(1)
-//   checkTree(tree, t)
-//   t.deepEqual(tree.values(), [3, 4, 2])
+  tree = tree.remove(1)
+  checkTree(tree, t)
+  t.deepEqual(
+    Array.from(tree).map(n => n.value),
+    [3, 4, 2]
+  )
 
-//   tree = tree.remove(0.5)
-//   checkTree(tree, t)
-//   t.deepEqual(tree.values(), [3, 4])
+  tree = tree.remove(0.5)
+  checkTree(tree, t)
+  t.deepEqual(
+    Array.from(tree).map(n => n.value),
+    [3, 4]
+  )
 
-//   tree = tree.remove(0.375)
-//   checkTree(tree, t)
-//   t.deepEqual(tree.values(), [3])
+  tree = tree.remove(0.375)
+  checkTree(tree, t)
+  t.deepEqual(
+    Array.from(tree).map(n => n.value),
+    [3]
+  )
 
-//   tree = tree.remove(0.25)
-//   checkTree(tree, t)
-//   t.deepEqual(tree.values(), [])
+  tree = tree.remove(0.25)
+  checkTree(tree, t)
+  t.deepEqual(
+    Array.from(tree).map(n => n.value),
+    []
+  )
+})
 
-// })
+test("slab-sequence-2", function(t) {
+  var u = makeTree<number, number>()
 
-// test("slab-sequence-2", function(t) {
-//   var u = makeTree<number, number>()
-
-//   u = u.insert(12, 22)
-//   u = u.insert(11, 3)
-//   u = u.insert(10, 28)
-//   u = u.insert(13, 16)
-//   u = u.insert(9, 9)
-//   u = u.insert(14, 10)
-//   u = u.insert(8, 15)
-//   u = u.insert(15, 29)
-//   u = u.insert(16, 4)
-//   u = u.insert(7, 21)
-//   u = u.insert(17, 23)
-//   u = u.insert(6, 2)
-//   u = u.insert(5, 27)
-//   u = u.insert(18, 17)
-//   u = u.insert(4, 8)
-//   u = u.insert(31, 11)
-//   u = u.insert(30, 30)
-//   u = u.insert(29, 5)
-//   u = u.insert(28, 24)
-//   u = u.insert(27, 18)
-//   u = u.insert(26, 12)
-//   u = u.insert(25, 31)
-//   u = u.insert(24, 6)
-//   u = u.insert(23, 25)
-//   u = u.insert(19, 7)
-//   u = u.insert(20, 13)
-//   u = u.insert(1, 20)
-//   u = u.insert(0, 14)
-//   u = u.insert(22, 0)
-//   u = u.insert(2, 1)
-//   u = u.insert(3, 26)
-//   u = u.insert(21, 19)
-//   u = u.remove(18)
-//   u = u.remove(17)
-//   u = u.remove(16)
-//   u = u.remove(15)
-//   u = u.remove(14)
-//   u = u.remove(13)
-//   u = u.remove(12)
-//   u = u.remove(6)
-//   u = u.remove(7)
-//   u = u.remove(8)
-//   u = u.remove(11)
-//   u = u.remove(4)
-//   u = u.remove(9)
-//   u = u.remove(10)
-//   u = u.remove(5)
-//   u = u.remove(31)
-//   u = u.remove(0)
-//   u = u.remove(30)
-//   u = u.remove(29)
-//   u = u.remove(1)
-//   u = u.remove(28)
-//   u = u.remove(2)
-//   u = u.remove(3)
-//   u = u.remove(27)
-//   u = u.remove(19)
-//   u = u.remove(26)
-//   u = u.remove(20)
-//   u = u.remove(25)
-//   u = u.remove(24)
-//   u = u.remove(21)
-//   u = u.remove(23)
-//   u = u.remove(22)
-
-// })
+  u = u.insert(12, 22)
+  checkTree(u, t)
+  u = u.insert(11, 3)
+  checkTree(u, t)
+  u = u.insert(10, 28)
+  checkTree(u, t)
+  u = u.insert(13, 16)
+  checkTree(u, t)
+  u = u.insert(9, 9)
+  checkTree(u, t)
+  u = u.insert(14, 10)
+  checkTree(u, t)
+  u = u.insert(8, 15)
+  checkTree(u, t)
+  u = u.insert(15, 29)
+  checkTree(u, t)
+  u = u.insert(16, 4)
+  checkTree(u, t)
+  u = u.insert(7, 21)
+  checkTree(u, t)
+  u = u.insert(17, 23)
+  checkTree(u, t)
+  u = u.insert(6, 2)
+  checkTree(u, t)
+  u = u.insert(5, 27)
+  checkTree(u, t)
+  u = u.insert(18, 17)
+  checkTree(u, t)
+  u = u.insert(4, 8)
+  checkTree(u, t)
+  u = u.insert(31, 11)
+  checkTree(u, t)
+  u = u.insert(30, 30)
+  checkTree(u, t)
+  u = u.insert(29, 5)
+  checkTree(u, t)
+  u = u.insert(28, 24)
+  checkTree(u, t)
+  u = u.insert(27, 18)
+  checkTree(u, t)
+  u = u.insert(26, 12)
+  checkTree(u, t)
+  u = u.insert(25, 31)
+  checkTree(u, t)
+  u = u.insert(24, 6)
+  checkTree(u, t)
+  u = u.insert(23, 25)
+  checkTree(u, t)
+  u = u.insert(19, 7)
+  checkTree(u, t)
+  u = u.insert(20, 13)
+  checkTree(u, t)
+  u = u.insert(1, 20)
+  checkTree(u, t)
+  u = u.insert(0, 14)
+  checkTree(u, t)
+  u = u.insert(22, 0)
+  checkTree(u, t)
+  u = u.insert(2, 1)
+  checkTree(u, t)
+  u = u.insert(3, 26)
+  checkTree(u, t)
+  u = u.insert(21, 19)
+  checkTree(u, t)
+  u = u.remove(18)
+  checkTree(u, t)
+  u = u.remove(17)
+  checkTree(u, t)
+  u = u.remove(16)
+  checkTree(u, t)
+  u = u.remove(15)
+  checkTree(u, t)
+  u = u.remove(14)
+  checkTree(u, t)
+  u = u.remove(13)
+  checkTree(u, t)
+  u = u.remove(12)
+  checkTree(u, t)
+  u = u.remove(6)
+  checkTree(u, t)
+  u = u.remove(7)
+  checkTree(u, t)
+  u = u.remove(8)
+  checkTree(u, t)
+  u = u.remove(11)
+  checkTree(u, t)
+  u = u.remove(4)
+  checkTree(u, t)
+  u = u.remove(9)
+  checkTree(u, t)
+  u = u.remove(10)
+  checkTree(u, t)
+  u = u.remove(5)
+  checkTree(u, t)
+  u = u.remove(31)
+  checkTree(u, t)
+  u = u.remove(0)
+  checkTree(u, t)
+  u = u.remove(30)
+  checkTree(u, t)
+  u = u.remove(29)
+  checkTree(u, t)
+  u = u.remove(1)
+  checkTree(u, t)
+  u = u.remove(28)
+  checkTree(u, t)
+  u = u.remove(2)
+  checkTree(u, t)
+  u = u.remove(3)
+  checkTree(u, t)
+  u = u.remove(27)
+  checkTree(u, t)
+  u = u.remove(19)
+  checkTree(u, t)
+  u = u.remove(26)
+  checkTree(u, t)
+  u = u.remove(20)
+  checkTree(u, t)
+  u = u.remove(25)
+  checkTree(u, t)
+  u = u.remove(24)
+  checkTree(u, t)
+  u = u.remove(21)
+  checkTree(u, t)
+  u = u.remove(23)
+  checkTree(u, t)
+  u = u.remove(22)
+  checkTree(u, t)
+})
