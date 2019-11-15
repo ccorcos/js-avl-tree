@@ -1,4 +1,4 @@
-import { AvlNode } from "./avl-tree3"
+import { AvlNode } from "./avl-tree"
 
 export class InMemoryKeyValueStore {
   private map: Record<string, string> = {}
