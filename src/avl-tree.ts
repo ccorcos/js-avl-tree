@@ -17,9 +17,9 @@ TODO
     - [x] for each method to iterate through the whole tree.
   - [x] migrate red-black tree tests
     - [ ] immutablility tests
-    - [ ] transaction number of writes test.
+    - [x] transaction number of writes test.
 - [ ] trampoline instead of recursion.
-- [ ] cleanup vars
+- [x] cleanup vars
 - [ ] make it async
   - [ ] run against leveldb
 - [ ] benchmark
@@ -165,7 +165,7 @@ function rotateLeft<K, V>(args: {
     throw Error("Cannot rotateRight without a right!")
   }
 
-  var b = clone(right)
+  const b = clone(right)
   transaction.cleanup(right)
   const a = clone(root)
   transaction.cleanup(root)
@@ -251,7 +251,7 @@ export function insert<K, V>(args: {
     rightCount({ transaction, node: newRoot }) +
     1
 
-  var balanceState = getBalanceState({ transaction, node: newRoot })
+  const balanceState = getBalanceState({ transaction, node: newRoot })
 
   if (balanceState === BalanceState.UNBALANCED_LEFT) {
     const left = transaction.get(newRoot.leftId)
@@ -334,7 +334,7 @@ export function remove<K, V>(args: {
       newRoot = left
     } else if (left && right) {
       // Node has 2 children, get the in-order successor
-      var inOrderSuccessor = minNode({ transaction, root: right })
+      const inOrderSuccessor = minNode({ transaction, root: right })
       newRoot.key = inOrderSuccessor.key
       newRoot.value = inOrderSuccessor.value
       const newRight = remove({
@@ -359,7 +359,7 @@ export function remove<K, V>(args: {
     rightCount({ transaction, node: newRoot }) +
     1
 
-  var balanceState = getBalanceState({ transaction, node: newRoot })
+  const balanceState = getBalanceState({ transaction, node: newRoot })
   if (balanceState === BalanceState.UNBALANCED_LEFT) {
     const left = transaction.get(newRoot.leftId)
     if (!left) {
@@ -419,8 +419,8 @@ function minNode<K, V>(args: {
   root: AvlNode<K, V>
 }) {
   const { transaction, root } = args
-  var current = root
-  var left: AvlNode<K, V> | undefined
+  let current = root
+  let left: AvlNode<K, V> | undefined
   while ((left = transaction.get(current.leftId))) {
     current = left
   }
@@ -435,8 +435,8 @@ function maxNode<K, V>(args: {
   root: AvlNode<K, V>
 }) {
   const { transaction, root } = args
-  var current = root
-  var right: AvlNode<K, V> | undefined
+  let current = root
+  let right: AvlNode<K, V> | undefined
   while ((right = transaction.get(current.rightId))) {
     current = right
   }
@@ -446,7 +446,7 @@ function maxNode<K, V>(args: {
 /**
  * Represents how balanced a node's left and right children are.
  */
-var BalanceState = {
+const BalanceState = {
   UNBALANCED_RIGHT: 1,
   SLIGHTLY_UNBALANCED_RIGHT: 2,
   BALANCED: 3,
@@ -462,7 +462,7 @@ function getBalanceState<K, V>(args: {
   transaction: Transaction<K, V>
   node: AvlNode<K, V>
 }) {
-  var heightDifference = leftHeight(args) - rightHeight(args)
+  const heightDifference = leftHeight(args) - rightHeight(args)
   switch (heightDifference) {
     case -2:
       return BalanceState.UNBALANCED_RIGHT
