@@ -173,86 +173,71 @@ test("iterators", function(t) {
   t.assert(!iter.valid, "must be eof iterator")
 })
 
-// tape("remove()", function(t) {
-//   var sz = [1, 2, 10, 20, 23, 31, 32, 33]
-//   for (var n = 0; n < sz.length; ++n) {
-//     var c = sz[n]
-//     var u = iota(c).reduce(function(u, k, v) {
-//       return u.insert(k, v)
-//     }, (makeTree<number, number>()))
-//     for (var i = 0; i < c; ++i) {
-//       checkTree(u.remove(i), t)
-//     }
-//   }
+test("remove()", function(t) {
+  var sz = [1, 2, 10, 20, 23, 31, 32, 33]
+  for (var n = 0; n < sz.length; ++n) {
+    var c = sz[n]
+    var u = iota(c).reduce(function(u, k, v) {
+      return u.insert(k, v)
+    }, makeTree<number, number>())
+    for (var i = 0; i < c; ++i) {
+      checkTree(u.remove(i), t)
+    }
+  }
+})
 
-// })
+test("keys and values", function(t) {
+  var original_keys = [
+    "potato",
+    "sock",
+    "foot",
+    "apple",
+    "newspaper",
+    "gameboy",
+  ]
+  var original_values: Array<any> = [42, 10, false, "!!!", {}, null]
 
-// tape("update()", function(t) {
-//   var arr = [0, 1, 2, 3, 4, 5, 6]
-//   var u = arr.reduce(function(u, k, v) {
-//     return u.insert(k, v)
-//   }, (makeTree<number, number>()))
-//   for (var iter = u.begin(); iter.hasNext; iter.next()) {
-//     var p = iter.value
-//     var updated = iter.update(1000)
-//     t.is(iter.value, iter.key, "ensure no mutation")
-//     t.is(
-//       updated.find(iter.key as number).value,
-//       1000,
-//       "ensure update applied"
-//     )
-//     checkTree(updated, t)
-//     checkTree(u, t)
-//   }
-// })
+  var u = makeTree<string, any>()
+  for (var i = 0; i < original_keys.length; ++i) {
+    u = u.insert(original_keys[i], original_values[i])
+  }
 
-// tape("keys and values", function(t) {
-//   var original_keys = [
-//     "potato",
-//     "sock",
-//     "foot",
-//     "apple",
-//     "newspaper",
-//     "gameboy",
-//   ]
-//   var original_values: Array<any> = [42, 10, false, "!!!", {}, null]
+  var zipped = iota(6).map(function(i) {
+    return [original_keys[i], original_values[i]]
+  })
 
-//   var u = makeTree<string, any>()
-//   for (var i = 0; i < original_keys.length; ++i) {
-//     u = u.insert(original_keys[i], original_values[i])
-//   }
+  zipped.sort(function(a, b) {
+    if (a[0] < b[0]) {
+      return -1
+    }
+    if (a[0] > b[0]) {
+      return 1
+    }
+    return 0
+  })
 
-//   var zipped = iota(6).map(function(i) {
-//     return [original_keys[i], original_values[i]]
-//   })
+  var keys = zipped.map(function(v) {
+    return v[0]
+  })
+  var values = zipped.map(function(v) {
+    return v[1]
+  })
 
-//   zipped.sort(function(a, b) {
-//     if (a[0] < b[0]) {
-//       return -1
-//     }
-//     if (a[0] > b[0]) {
-//       return 1
-//     }
-//     return 0
-//   })
+  t.deepEqual(
+    Array.from(u).map(u => u.key),
+    keys
+  )
+  t.deepEqual(
+    Array.from(u).map(u => u.value),
+    values
+  )
+})
 
-//   var keys = zipped.map(function(v) {
-//     return v[0]
-//   })
-//   var values = zipped.map(function(v) {
-//     return v[1]
-//   })
-
-//   t.same(u.keys(), keys)
-//   t.same(u.values(), values)
-
-// })
-
-// tape("searching", function(t) {
+// test("searching", function(t) {
 //   var arr = [0, 1, 1, 1, 1, 2, 3, 4, 5, 6, 6]
 //   var u = arr.reduce(function(u, k, v) {
 //     return u.insert(k, v)
-//   }, (makeTree<number, number>()))
+//   }, makeTree<number, number>())
 
 //   for (var i = 0; i < arr.length; ++i) {
 //     if (arr[i] !== arr[i - 1] && arr[i] !== arr[i + 1]) {
@@ -304,63 +289,62 @@ test("iterators", function(t) {
 //   t.assert(u.find(1).index() < 5, "find repeat")
 
 //   for (var i = 0; i < arr.length; ++i) {
-//     t.is(u.find(arr[i]).key, arr[i], "find " + i)
+//     t.is(u.find(arr[i]).node?.key, arr[i], "find " + i)
 //   }
 
 //   for (var i = 0; i < arr.length; ++i) {
-//     t.is(u.at(i).key, arr[i], "at " + i)
+//     t.is(u.at(i).node?.key, arr[i], "at " + i)
 //   }
 //   t.is(u.at(-1).valid, false, "at missing small")
 //   t.is(u.at(1000).valid, false, "at missing big")
-
 // })
 
-// tape("slab-sequence", function(t) {
+// test("slab-sequence", function(t) {
 //   var tree = makeTree<number, number>()
 
 //   tree = tree.insert(0, 0)
 //   checkTree(tree, t)
-//   t.same(tree.values(), [0])
+//   t.deepEqual(tree.values(), [0])
 
 //   tree = tree.insert(1, 1)
 //   checkTree(tree, t)
-//   t.same(tree.values(), [0, 1])
+//   t.deepEqual(tree.values(), [0, 1])
 
 //   tree = tree.insert(0.5, 2)
 //   checkTree(tree, t)
-//   t.same(tree.values(), [0, 2, 1])
+//   t.deepEqual(tree.values(), [0, 2, 1])
 
 //   tree = tree.insert(0.25, 3)
 //   checkTree(tree, t)
-//   t.same(tree.values(), [0, 3, 2, 1])
+//   t.deepEqual(tree.values(), [0, 3, 2, 1])
 
 //   tree = tree.remove(0)
 //   checkTree(tree, t)
-//   t.same(tree.values(), [3, 2, 1])
+//   t.deepEqual(tree.values(), [3, 2, 1])
 
 //   tree = tree.insert(0.375, 4)
 //   checkTree(tree, t)
-//   t.same(tree.values(), [3, 4, 2, 1])
+//   t.deepEqual(tree.values(), [3, 4, 2, 1])
 
 //   tree = tree.remove(1)
 //   checkTree(tree, t)
-//   t.same(tree.values(), [3, 4, 2])
+//   t.deepEqual(tree.values(), [3, 4, 2])
 
 //   tree = tree.remove(0.5)
 //   checkTree(tree, t)
-//   t.same(tree.values(), [3, 4])
+//   t.deepEqual(tree.values(), [3, 4])
 
 //   tree = tree.remove(0.375)
 //   checkTree(tree, t)
-//   t.same(tree.values(), [3])
+//   t.deepEqual(tree.values(), [3])
 
 //   tree = tree.remove(0.25)
 //   checkTree(tree, t)
-//   t.same(tree.values(), [])
+//   t.deepEqual(tree.values(), [])
 
 // })
 
-// tape("slab-sequence-2", function(t) {
+// test("slab-sequence-2", function(t) {
 //   var u = makeTree<number, number>()
 
 //   u = u.insert(12, 22)

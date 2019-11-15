@@ -544,7 +544,7 @@ export class AvlTree<K, V> {
     }
   }
 
-  find(key: K): AvlTreeIterator<K, V> | undefined {
+  find(key: K): AvlTreeIterator<K, V> {
     let node = this.root
     const stack: Array<AvlNode<K, V>> = []
     while (node) {
@@ -559,6 +559,7 @@ export class AvlTree<K, V> {
         node = this.store.get(node.rightId)
       }
     }
+    return new AvlTreeIterator({ tree: this, stack: [] })
   }
 
   begin(): AvlTreeIterator<K, V> {
