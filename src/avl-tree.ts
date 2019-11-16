@@ -195,6 +195,32 @@ function rotateLeft<K, V>(args: {
 
 type Compare<K> = (a: K, b: K) => number
 
+/**
+ * Find the path to a key or as close as possible.
+ */
+function findPath<K, V>(args: {
+  store: AvlNodeReadOnlyStore<K, V>
+  compare: Compare<K>
+  root: AvlNode<K, V>
+  key: K
+}) {
+  const { store, compare, root, key } = args
+  const stack: Array<AvlNode<K, V>> = []
+  let node: AvlNode<K, V> | undefined = root
+  while (node) {
+    stack.push(node)
+    const direction = compare(key, node.key)
+    if (direction < 0) {
+      node = store.get(node.leftId)
+    } else if (direction > 0) {
+      node = store.get(node.rightId)
+    } else {
+      node = undefined
+    }
+  }
+  return stack
+}
+
 export function insert<K, V>(args: {
   transaction: Transaction<K, V>
   root: AvlNode<K, V> | undefined
@@ -220,19 +246,7 @@ export function insert<K, V>(args: {
   }
 
   // Find the path to where we want to insert.
-  const stack: Array<AvlNode<K, V>> = []
-  let node: AvlNode<K, V> | undefined = root
-  while (node) {
-    stack.push(node)
-    const direction = compare(key, node.key)
-    if (direction < 0) {
-      node = transaction.get(node.leftId)
-    } else if (direction > 0) {
-      node = transaction.get(node.rightId)
-    } else {
-      node = undefined
-    }
-  }
+  const stack = findPath({ store: transaction, compare, root, key })
 
   // Clone the entire path.
   stack[0] = clone(stack[0])
@@ -613,21 +627,21 @@ export class AvlTree<K, V> {
   }
 
   find(key: K): AvlTreeIterator<K, V> {
-    let node = this.root
-    const stack: Array<AvlNode<K, V>> = []
-    while (node) {
-      stack.push(node)
-      const direction = this.compare(key, node.key)
-      if (direction === 0) {
-        return new AvlTreeIterator({ tree: this, stack })
-      }
-      if (direction <= 0) {
-        node = this.store.get(node.leftId)
-      } else {
-        node = this.store.get(node.rightId)
-      }
+    if (!this.root) {
+      return new AvlTreeIterator({ tree: this, stack: [] })
     }
-    return new AvlTreeIterator({ tree: this, stack: [] })
+    const stack = findPath({
+      store: this.store,
+      compare: this.compare,
+      root: this.root,
+      key,
+    })
+    const last = stack[stack.length - 1]
+    if (this.compare(key, last.key) === 0) {
+      return new AvlTreeIterator({ tree: this, stack })
+    } else {
+      return new AvlTreeIterator({ tree: this, stack: [] })
+    }
   }
 
   begin(): AvlTreeIterator<K, V> {
