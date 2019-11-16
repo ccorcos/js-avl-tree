@@ -19,7 +19,7 @@ TODO
     - [ ] immutablility tests
     - [x] transaction number of writes test.
 - [ ] iterative instead of recursion.
-  - [ ] insert
+  - [x] insert
   - [ ] remove
 - [x] cleanup vars
 - [ ] make it async
@@ -204,7 +204,7 @@ export function insert<K, V>(args: {
 }): AvlNode<K, V> {
   const { transaction, root, compare, key, value } = args
 
-  // Perform regular BST insertion
+  // Root doesn't exist.
   if (root === undefined) {
     const newNode: AvlNode<K, V> = {
       id: randomId(),
@@ -219,75 +219,139 @@ export function insert<K, V>(args: {
     return newNode
   }
 
-  const newRoot: AvlNode<K, V> = clone(root)
-  transaction.cleanup(root)
-  if (compare(key, root.key) < 0) {
-    const left = transaction.get(root.leftId)
-    const newLeft = insert({ transaction, compare, key, value, root: left })
-    if (left) {
-      transaction.cleanup(left)
+  // Find the path to where we want to insert.
+  const stack: Array<AvlNode<K, V>> = []
+  let node: AvlNode<K, V> | undefined = root
+  while (node) {
+    stack.push(node)
+    const direction = compare(key, node.key)
+    if (direction < 0) {
+      node = transaction.get(node.leftId)
+    } else if (direction > 0) {
+      node = transaction.get(node.rightId)
+    } else {
+      node = undefined
     }
-    newRoot.leftId = newLeft.id
-  } else if (compare(key, root.key) > 0) {
-    const right = transaction.get(root.rightId)
-    const newRight = insert({ transaction, compare, key, value, root: right })
-    if (right) {
-      transaction.cleanup(right)
-    }
-    newRoot.rightId = newRight.id
-  } else {
-    // It's a duplicate so insertion failed, decrement size to make up for it
-    // this._size--
-    newRoot.value = value
-    transaction.set(newRoot)
-    return newRoot
   }
 
-  // Update height and rebalance tree
-  newRoot.height =
-    Math.max(
-      leftHeight({ transaction, node: newRoot }),
-      rightHeight({ transaction, node: newRoot })
-    ) + 1
-  newRoot.count =
-    leftCount({ transaction, node: newRoot }) +
-    rightCount({ transaction, node: newRoot }) +
-    1
+  // Clone the entire path.
+  stack[0] = clone(stack[0])
+  for (let i = 1; i < stack.length; i++) {
+    const prev = stack[i - 1]
+    const node = stack[i]
+    const newNode = clone(stack[i])
+    if (prev.leftId === node.id) {
+      prev.leftId = newNode.id
+    } else {
+      prev.rightId = newNode.id
+    }
+    stack[i] = newNode
+  }
 
-  const balanceState = getBalanceState({ transaction, node: newRoot })
+  // Insert at the end of the stack.
+  const last = stack[stack.length - 1]
+  const direction = compare(key, last.key)
+
+  // Found an exact match, no need to rebalance.
+  if (direction === 0) {
+    // Set the value of the last node.
+    stack[stack.length - 1].value = value
+    // Save the new path.
+    for (const node of stack) {
+      transaction.set(node)
+    }
+    // Return the new root.
+    return stack[0]
+  }
+
+  // Insert new key-value node.
+  const newNode: AvlNode<K, V> = {
+    id: randomId(),
+    leftId: undefined,
+    rightId: undefined,
+    key: key,
+    value: value,
+    height: 0,
+    count: 1,
+  }
+  if (direction < 0) {
+    last.leftId = newNode.id
+  } else {
+    last.rightId = newNode.id
+  }
+  stack.push(newNode)
+
+  // Save the new path.
+  for (const node of stack) {
+    transaction.set(node)
+  }
+
+  // Balance the tree.
+  while (stack.length > 1) {
+    // Warning: rebalancing is going to make the rest of the stack invalid.
+    // That is why we're using `pop()` to ensure that we don't use it anymore.
+    const node = stack.pop()!
+    const newNode = rebalance({ transaction, compare, key, node })
+
+    // Update pointer from the previous node.
+    if (node.id !== newNode.id) {
+      const prev = stack[stack.length - 1]
+      if (prev.leftId === node.id) {
+        prev.leftId = newNode.id
+      } else {
+        prev.rightId = newNode.id
+      }
+    }
+  }
+  return rebalance({ transaction, compare, key, node: stack[0] })
+}
+
+function rebalance<K, V>(args: {
+  transaction: Transaction<K, V>
+  compare: Compare<K>
+  key: K
+  node: AvlNode<K, V>
+}) {
+  const { transaction, compare, key, node } = args
+
+  // Update height and rebalance tree
+  node.height =
+    Math.max(
+      leftHeight({ transaction, node }),
+      rightHeight({ transaction, node })
+    ) + 1
+  node.count =
+    leftCount({ transaction, node }) + rightCount({ transaction, node }) + 1
+
+  const balanceState = getBalanceState({ transaction, node })
 
   if (balanceState === BalanceState.UNBALANCED_LEFT) {
-    const left = transaction.get(newRoot.leftId)
-    if (!left) {
-      throw new Error("Left must exist.")
-    }
-    if (compare(key, left.key) < 0) {
-      return rotateRight({ transaction, root: newRoot })
+    const left = transaction.get(node.leftId)!
+    const direction = compare(key, left.key)
+    if (direction < 0) {
+      // Left left case
+      return rotateRight({ transaction, root: node })
     } else {
       // Left right case
-      newRoot.leftId = rotateLeft({ transaction, root: left }).id
-      return rotateRight({ transaction, root: newRoot })
+      node.leftId = rotateLeft({ transaction, root: left }).id
+      return rotateRight({ transaction, root: node })
     }
   }
 
   if (balanceState === BalanceState.UNBALANCED_RIGHT) {
-    const right = transaction.get(newRoot.rightId)
-    if (!right) {
-      throw new Error("Right must exist.")
-    }
-
-    if (compare(key, right.key) > 0) {
+    const right = transaction.get(node.rightId)!
+    const direction = compare(key, right.key)
+    if (direction > 0) {
       // Right right case
-      return rotateLeft({ transaction, root: newRoot })
+      return rotateLeft({ transaction, root: node })
     } else {
       // Right left case
-      newRoot.rightId = rotateRight({ transaction, root: right }).id
-      return rotateLeft({ transaction, root: newRoot })
+      node.rightId = rotateRight({ transaction, root: right }).id
+      return rotateLeft({ transaction, root: node })
     }
   }
 
-  transaction.set(newRoot)
-  return newRoot
+  return node
 }
 
 export function remove<K, V>(args: {
@@ -552,8 +616,8 @@ export class AvlTree<K, V> {
     let node = this.root
     const stack: Array<AvlNode<K, V>> = []
     while (node) {
-      const direction = this.compare(key, node.key)
       stack.push(node)
+      const direction = this.compare(key, node.key)
       if (direction === 0) {
         return new AvlTreeIterator({ tree: this, stack })
       }
