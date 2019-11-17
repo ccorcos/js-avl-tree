@@ -1,13 +1,19 @@
 // These tests were adopted from `functional-red-black-tree` which are pretty exhaustive.
 import * as _ from "lodash"
 import test, { ExecutionContext } from "ava"
-import { AvlTree, AvlNode, AvlTreeIterator, printTree } from "../src/avl-tree"
+import { AvlTree, AvlNode, AvlTreeIterator } from "../src/avl-tree"
 import { compare } from "../src/utils"
-import { InMemoryKeyValueStore, AvlNodeStore } from "../src/storage"
+import {
+  InMemoryKeyValueStore,
+  InMemoryAvlNodeStorage,
+} from "../storage/memory"
+
 const iota = require("iota-array") as (n: number) => Array<number>
 
 function makeTree<K, V>() {
-  const store = new AvlNodeStore<any, any>(new InMemoryKeyValueStore())
+  const store = new InMemoryAvlNodeStorage<any, any>(
+    new InMemoryKeyValueStore()
+  )
   return new AvlTree<K, V>({
     compare: compare,
     root: undefined,

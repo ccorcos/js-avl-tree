@@ -6,7 +6,7 @@
     "strictNullChecks": true,
     "strictFunctionTypes": true,
     "noImplicitThis": true,
-    "noImplicitAny": true,
+    "noImplicitAny": false,
     "allowSyntheticDefaultImports": false,
     "removeComments": true,
     "downlevelIteration": true,
@@ -17,6 +17,6 @@
     "lib": ["es6", "es2017", "es2018"],
     "outDir": "build"
   },
-  "include": ["src/**/*", "test/**/*"],
+  "include": ["src/**/*", "test/**/*", "storage/**/*"],
   "exclude": ["node_modules"]
 }

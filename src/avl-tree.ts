@@ -1,7 +1,7 @@
 /*
 
 TODO
-- [ ] make it async
+- [x] make it async
   - [ ] run against leveldb
 - [ ] benchmark
 - [ ] treedb persist heads

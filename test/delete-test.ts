@@ -1,9 +1,12 @@
 import test from "ava"
 import { AvlTree } from "../src/avl-tree"
-import { InMemoryKeyValueStore, AvlNodeStore } from "../src/storage"
 import { compare } from "../src/utils"
+import {
+  InMemoryKeyValueStore,
+  InMemoryAvlNodeStorage,
+} from "../storage/memory"
 
-const store = new AvlNodeStore<any, any>(new InMemoryKeyValueStore())
+const store = new InMemoryAvlNodeStorage<any, any>(new InMemoryKeyValueStore())
 
 test("should not change the size of a tree with no root", async function(t) {
   let tree = new AvlTree<number, number>({
