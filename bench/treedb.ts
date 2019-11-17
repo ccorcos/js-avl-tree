@@ -9,7 +9,7 @@ async function main() {
     "treedb",
     new TreeDb<string, string>({
       name: "test" + Math.random().toString(),
-      store: new LevelDbKeyValueStorage(new LevelDb("./chet.leveldb")),
+      store: new LevelDbKeyValueStorage(new LevelDb("./test.leveldb")),
       compare: compare,
     })
   )
