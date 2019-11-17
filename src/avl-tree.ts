@@ -2,7 +2,7 @@
 
 TODO
 - [x] make it async
-  - [ ] run against leveldb
+  - [x] run against leveldb
 - [ ] benchmark
 - [ ] treedb persist heads
 - [ ] assemblyscript?

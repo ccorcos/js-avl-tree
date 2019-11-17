@@ -1,7 +1,7 @@
 import { performance } from "perf_hooks"
 import * as _ from "lodash"
 
-const iterations = 10_000
+const iterations = 100_000
 
 export interface BenchDb {
   get(key: string): Promise<string | undefined>
@@ -28,14 +28,17 @@ class Timer {
   count = 0
 
   t = performance.now()
-  next() {
+
+  begin() {
+    this.t = performance.now()
+  }
+  end() {
     const t2 = performance.now()
     const dt = t2 - this.t
     this.min = Math.min(this.min, dt)
     this.max = Math.max(this.max, dt)
     this.sum = this.sum + dt
     this.count = this.count + 1
-    this.t = t2
   }
 
   timer: NodeJS.Timeout | undefined
@@ -68,15 +71,25 @@ export async function benchmark(label: string, db: BenchDb) {
   for (var i = 0; i < iterations; i++) {
     const key = random()
     keys.push(key)
+    sets.begin()
     await db.set(key, random())
-    sets.next()
+    sets.end()
+    // This rest is necessary for Node.js GC to not die benching treedb.
+    if (i % 10000 === 0) {
+      await new Promise(resolve => setTimeout(resolve, 1000))
+    }
   }
   sets.stop()
 
   const gets = new Timer(label + ": gets")
   for (var i = 0; i < iterations; i++) {
+    gets.begin()
     await db.get(keys[i])
-    gets.next()
+    gets.end()
+    // This rest is necessary for Node.js GC to not die benching treedb.
+    if (i % 10000 === 0) {
+      await new Promise(resolve => setTimeout(resolve, 1000))
+    }
   }
   gets.stop()
 }

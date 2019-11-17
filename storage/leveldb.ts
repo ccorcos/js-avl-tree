@@ -57,7 +57,10 @@ export class LevelDb {
 export class LevelDbAvlNodeStorage<K, V> implements AvlNodeStorage<K, V> {
   constructor(private db: LevelDb) {}
 
-  async get(id: string): Promise<AvlNode<K, V> | undefined> {
+  async get(id: string | undefined): Promise<AvlNode<K, V> | undefined> {
+    if (!id) {
+      return
+    }
     const result = await this.db.get(id)
     if (result === undefined) {
       return

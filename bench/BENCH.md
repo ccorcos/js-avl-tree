@@ -26,48 +26,28 @@ treedb: sets { min: '0.000 ms', max: '37.323 ms', avg: '0.915 ms' }
 treedb: gets { min: '0.000 ms', max: '16.629 ms', avg: '0.218 ms' }
 ```
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 Observations:
-- write: .025 * 13 = 0.325
-	It looks like the overhead of Node.js and tree mangling is ~2.5x.
-- read: .019 * 12 = 0.25
-	Overhead of 1/3x
+- read: .017 * 13 = 0.221
+	Node.js overhead is marginal.
+- set: 0.024 * 13 = 0.312
+	3x overhead on balancing.
 
 ```ts
 iterations: 100_000
-```
 
-To Do:
-- try with a larger number of iterations.
-- figure out why treedb crashes -- memory leak?
+leveldb: sets { min: '0.000 ms', max: '67.996 ms', avg: '0.023 ms' }
+leveldb: gets { min: '0.000 ms', max: '4.764 ms', avg: '0.018 ms' }
+
+sqlite: sets { min: '0.000 ms', max: '54.005 ms', avg: '0.573 ms' }
+sqlite: gets { min: '0.000 ms', max: '3.449 ms', avg: '0.028 ms' }
+
+NOTE: using 1s rest every 10k iterations.
+treedb: sets { min: '0.000 ms', max: '169.468 ms', avg: '1.411 ms' }
+treedb: gets { min: '0.000 ms', max: '13.353 ms', avg: '0.312 ms' }
+
+## To Do
+- Open up an issue ticket with Node.js about memory explosion issue.
+- Try awaiting a timeout every so often. See if that gives Node.js some breathing room.
 
 ```sh
 node --max_old_space_size=2048 -r ts-node/register
@@ -76,7 +56,3 @@ npm run build && node --inspect-brk build/bench/treedb.js
 
 npm run build && node --trace-gc build/bench/treedb.js
 ```
-
-https://stackoverflow.com/questions/33746184/what-is-meaning-of-node-js-trace-gc-output
-
-Looks like it keeps up for a while...

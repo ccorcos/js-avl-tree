@@ -15,7 +15,10 @@ export class InMemoryKeyValueStore {
 
 export class InMemoryAvlNodeStorage<K, V> implements AvlNodeStorage<K, V> {
   constructor(private store: InMemoryKeyValueStore) {}
-  async get(id: string) {
+  async get(id: string | undefined) {
+    if (!id) {
+      return
+    }
     const result = await this.store.get(id)
     if (result !== undefined) {
       return JSON.parse(result)
