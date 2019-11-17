@@ -221,6 +221,24 @@ function findPath<K, V>(args: {
   return stack
 }
 
+function clonePath<K, V>(path: Array<AvlNode<K, V>>) {
+  const newPath = [...path]
+  // Clone the entire path.
+  newPath[0] = clone(newPath[0])
+  for (let i = 1; i < newPath.length; i++) {
+    const prev = newPath[i - 1]
+    const node = newPath[i]
+    const newNode = clone(newPath[i])
+    if (prev.leftId === node.id) {
+      prev.leftId = newNode.id
+    } else {
+      prev.rightId = newNode.id
+    }
+    newPath[i] = newNode
+  }
+  return newPath
+}
+
 export function insert<K, V>(args: {
   transaction: Transaction<K, V>
   root: AvlNode<K, V> | undefined
@@ -246,21 +264,7 @@ export function insert<K, V>(args: {
   }
 
   // Find the path to where we want to insert.
-  const stack = findPath({ store: transaction, compare, root, key })
-
-  // Clone the entire path.
-  stack[0] = clone(stack[0])
-  for (let i = 1; i < stack.length; i++) {
-    const prev = stack[i - 1]
-    const node = stack[i]
-    const newNode = clone(stack[i])
-    if (prev.leftId === node.id) {
-      prev.leftId = newNode.id
-    } else {
-      prev.rightId = newNode.id
-    }
-    stack[i] = newNode
-  }
+  const stack = clonePath(findPath({ store: transaction, compare, root, key }))
 
   // Insert at the end of the stack.
   const last = stack[stack.length - 1]
@@ -305,7 +309,7 @@ export function insert<K, V>(args: {
     // Warning: rebalancing is going to make the rest of the stack invalid.
     // That is why we're using `pop()` to ensure that we don't use it anymore.
     const node = stack.pop()!
-    const newNode = rebalance({ transaction, compare, key, node })
+    const newNode = rebalanceInsert({ transaction, compare, key, node })
 
     // Update pointer from the previous node.
     if (node.id !== newNode.id) {
@@ -317,10 +321,10 @@ export function insert<K, V>(args: {
       }
     }
   }
-  return rebalance({ transaction, compare, key, node: stack[0] })
+  return rebalanceInsert({ transaction, compare, key, node: stack[0] })
 }
 
-function rebalance<K, V>(args: {
+function rebalanceInsert<K, V>(args: {
   transaction: Transaction<K, V>
   compare: Compare<K>
   key: K
@@ -376,73 +380,125 @@ export function remove<K, V>(args: {
 }): AvlNode<K, V> | undefined {
   const { transaction, root, compare, key } = args
 
-  // Perform regular BST deletion
+  // Empty tree.
   if (root === undefined) {
+    return
+  }
+
+  const stack = clonePath(findPath({ store: transaction, compare, root, key }))
+  const last = stack.pop()!
+  const prev = stack[stack.length - 1]
+
+  // Key not found.
+  if (compare(key, last.key) !== 0) {
     return root
   }
 
-  let newRoot = clone(root)
-  transaction.cleanup(root)
-
-  if (compare(key, newRoot.key) < 0) {
-    // The key to be deleted is in the left sub-tree
-    const left = transaction.get(newRoot.leftId)
-    const newLeft = remove({ transaction, compare, key, root: left })
-    if (left) {
-      transaction.cleanup(left)
-    }
-    newRoot.leftId = newLeft?.id
-  } else if (compare(key, newRoot.key) > 0) {
-    // The key to be deleted is in the right sub-tree
-    const right = transaction.get(newRoot.rightId)
-    const newRight = remove({ transaction, compare, key, root: right })
-    if (right) {
-      transaction.cleanup(right)
-    }
-    newRoot.rightId = newRight?.id
-  } else {
-    // root is the node to be deleted
-    const left = transaction.get(newRoot.leftId)
-    const right = transaction.get(newRoot.rightId)
-    if (!left && !right) {
-      transaction.cleanup(newRoot)
-      return undefined
-    } else if (!left && right) {
-      transaction.cleanup(newRoot)
-      newRoot = right
-    } else if (left && !right) {
-      transaction.cleanup(newRoot)
-      newRoot = left
-    } else if (left && right) {
-      // Node has 2 children, get the in-order successor
-      const inOrderSuccessor = minNode({ transaction, root: right })
-      newRoot.key = inOrderSuccessor.key
-      newRoot.value = inOrderSuccessor.value
-      const newRight = remove({
-        transaction,
-        compare,
-        root: right,
-        key: inOrderSuccessor.key,
-      })
-      transaction.cleanup(right)
-      newRoot.rightId = newRight?.id
-    }
+  // Save the new path.
+  for (const node of stack) {
+    transaction.set(node)
   }
 
+  // Remove from the end of the stack.
+  const left = transaction.get(last.leftId)
+  const right = transaction.get(last.rightId)
+
+  if (!left && !right) {
+    // Update pointer from the previous node.
+    if (prev) {
+      if (prev.leftId === last.id) {
+        prev.leftId = undefined
+      } else {
+        prev.rightId = undefined
+      }
+    } else {
+      return undefined
+    }
+  } else if (!left && right) {
+    // Update pointer from the previous node.
+    if (prev) {
+      if (prev.leftId === last.id) {
+        prev.leftId = right.id
+      } else {
+        prev.rightId = right.id
+      }
+    } else {
+      const newRoot = clone(right)
+      transaction.set(newRoot)
+      stack.push(newRoot)
+    }
+  } else if (left && !right) {
+    // Update pointer from the previous node.
+    if (prev) {
+      if (prev.leftId === last.id) {
+        prev.leftId = left.id
+      } else {
+        prev.rightId = left.id
+      }
+    } else {
+      const newRoot = clone(left)
+      transaction.set(newRoot)
+      stack.push(newRoot)
+    }
+  } else if (left && right) {
+    // Node has 2 children, get the in-order successor.
+    const inOrderSuccessor = minNode({ transaction, root: right })
+    last.key = inOrderSuccessor.key
+    last.value = inOrderSuccessor.value
+
+    // Note: this will never recur more than once because we've already
+    // found the key we want to remove.
+    const newRight = remove({
+      transaction,
+      compare,
+      root: right,
+      key: inOrderSuccessor.key,
+    })
+    last.rightId = newRight?.id
+    transaction.set(last)
+    stack.push(last)
+  }
+
+  // Balance the tree.
+  while (stack.length > 1) {
+    // Warning: rebalancing is going to make the rest of the stack invalid.
+    // That is why we're using `pop()` to ensure that we don't use it anymore.
+    const node = stack.pop()!
+    const newNode = rebalanceRemove({ transaction, node })
+
+    // Update pointer from the previous node.
+    if (node.id !== newNode.id) {
+      const prev = stack[stack.length - 1]
+      if (prev.leftId === node.id) {
+        prev.leftId = newNode.id
+      } else {
+        prev.rightId = newNode.id
+      }
+    }
+  }
+  return rebalanceRemove({ transaction, node: stack[0] })
+}
+
+function rebalanceRemove<K, V>(args: {
+  transaction: Transaction<K, V>
+  node: AvlNode<K, V>
+}) {
+  const { transaction, node } = args
+
   // Update height and rebalance tree
-  newRoot.height =
+  node.height =
     Math.max(
-      leftHeight({ transaction, node: newRoot }),
-      rightHeight({ transaction, node: newRoot })
+      leftHeight({ transaction, node: node }),
+      rightHeight({ transaction, node: node })
     ) + 1
-  newRoot.count =
-    leftCount({ transaction, node: newRoot }) +
-    rightCount({ transaction, node: newRoot }) +
+  node.count =
+    leftCount({ transaction, node: node }) +
+    rightCount({ transaction, node: node }) +
     1
 
-  const balanceState = getBalanceState({ transaction, node: newRoot })
+  const balanceState = getBalanceState({ transaction, node: node })
   if (balanceState === BalanceState.UNBALANCED_LEFT) {
-    const left = transaction.get(newRoot.leftId)
+    const left = transaction.get(node.leftId)
     if (!left) {
       throw new Error("Left must exist!")
     }
@@ -452,20 +508,20 @@ export function remove<K, V>(args: {
       getBalanceState({ transaction, node: left }) ===
         BalanceState.SLIGHTLY_UNBALANCED_LEFT
     ) {
-      return rotateRight({ transaction, root: newRoot })
+      return rotateRight({ transaction, root: node })
     }
     // Left right case
     if (
       getBalanceState({ transaction, node: left }) ===
       BalanceState.SLIGHTLY_UNBALANCED_RIGHT
     ) {
-      newRoot.leftId = rotateLeft({ transaction, root: left }).id
-      return rotateRight({ transaction, root: newRoot })
+      node.leftId = rotateLeft({ transaction, root: left }).id
+      return rotateRight({ transaction, root: node })
     }
   }
 
   if (balanceState === BalanceState.UNBALANCED_RIGHT) {
-    const right = transaction.get(newRoot.rightId)
+    const right = transaction.get(node.rightId)
     if (!right) {
       throw new Error("Right must exist!")
     }
@@ -476,20 +532,19 @@ export function remove<K, V>(args: {
       getBalanceState({ transaction, node: right }) ===
         BalanceState.SLIGHTLY_UNBALANCED_RIGHT
     ) {
-      return rotateLeft({ transaction, root: newRoot })
+      return rotateLeft({ transaction, root: node })
     }
     // Right left case
     if (
       getBalanceState({ transaction, node: right }) ===
       BalanceState.SLIGHTLY_UNBALANCED_LEFT
     ) {
-      newRoot.rightId = rotateRight({ transaction, root: right }).id
-      return rotateLeft({ transaction, root: newRoot })
+      node.rightId = rotateRight({ transaction, root: right }).id
+      return rotateLeft({ transaction, root: node })
     }
   }
 
-  transaction.set(newRoot)
-  return newRoot
+  return node
 }
 
 /**
