@@ -18,9 +18,9 @@ TODO
   - [x] migrate red-black tree tests
     - [ ] immutablility tests
     - [x] transaction number of writes test.
-- [ ] iterative instead of recursion.
+- [x] iterative instead of recursion.
   - [x] insert
-  - [ ] remove
+  - [x] remove
 - [x] cleanup vars
 - [ ] make it async
   - [ ] run against leveldb
