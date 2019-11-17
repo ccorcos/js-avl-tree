@@ -44,15 +44,16 @@ sqlite: gets { min: '0.000 ms', max: '3.449 ms', avg: '0.028 ms' }
 NOTE: using 1s rest every 10k iterations.
 treedb: sets { min: '0.000 ms', max: '169.468 ms', avg: '1.411 ms' }
 treedb: gets { min: '0.000 ms', max: '13.353 ms', avg: '0.312 ms' }
+```
 
-## To Do
-- Open up an issue ticket with Node.js about memory explosion issue.
-- Try awaiting a timeout every so often. See if that gives Node.js some breathing room.
+Observations:
+- read: .018 * 16.5 = 0.297
+	Node.js overhead is 10%.
+- set:.023 * 16.5 = 0.380
+	3-4x overhead on balancing.
 
-```sh
+```
 node --max_old_space_size=2048 -r ts-node/register
-
 npm run build && node --inspect-brk build/bench/treedb.js
-
 npm run build && node --trace-gc build/bench/treedb.js
 ```

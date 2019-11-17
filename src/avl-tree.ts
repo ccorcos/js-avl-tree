@@ -3,7 +3,8 @@
 TODO
 - [x] make it async
   - [x] run against leveldb
-- [ ] benchmark
+- [x] benchmark
+  - [ ] Node.js issue ticket about GC
 - [ ] treedb persist heads
 - [ ] assemblyscript?
 
