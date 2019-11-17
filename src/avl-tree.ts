@@ -16,7 +16,7 @@ TODO
     - [x] get method.
     - [x] for each method to iterate through the whole tree.
   - [x] migrate red-black tree tests
-    - [ ] immutablility tests
+    - [x] immutablility tests
     - [x] transaction number of writes test.
 - [x] iterative instead of recursion.
   - [x] insert

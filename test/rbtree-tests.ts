@@ -601,8 +601,10 @@ test("randomness", function(t) {
     const ids: Array<string> = []
     const numbers = _.shuffle(_.range(100))
     for (const n of numbers) {
-      u = u.insert(n, n)
+      const next = u.insert(n, n)
       checkTree(u, t)
+      checkTree(next, t) // Test immutability
+      u = next
       ids.push(...Array.from(u).map(({ id }) => id))
     }
     checkStore(u, ids, t)
