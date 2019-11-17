@@ -1,36 +1,25 @@
 /*
 
 TODO
-- [x] make this thing immutable
-- [x] migrate the rest of the tests.
-  - [x] better DevX with classes. how to distinguish writes in batches?
-  - [x] keep track of size.
-  - [x] iterator type similar to red-black tree
-  - [x] migrating custom-compare test to avl-tree3
-    - [x] better size tests for remove()
-  - [x] need to create better iterator ux
-    - [x] find min, next
-    - [x] find max, prev
-    - [x] invalid iterator length 0 after .next(). node is nullable!
-    - [x] forEach
-    - [x] get method.
-    - [x] for each method to iterate through the whole tree.
-  - [x] migrate red-black tree tests
-    - [x] immutablility tests
-    - [x] transaction number of writes test.
-- [x] iterative instead of recursion.
-  - [x] insert
-  - [x] remove
-- [x] cleanup vars
 - [ ] make it async
   - [ ] run against leveldb
-  - [ ] assemblyscript?
 - [ ] benchmark
+- [ ] treedb persist heads
+- [ ] assemblyscript?
 
 */
 
-import { Transaction, AvlNodeReadOnlyStore, AvlNodeStore } from "./storage"
 import { randomId } from "./utils"
+
+export interface AvlNodeStorage<K, V> {
+  get(id: string | undefined): Promise<AvlNode<K, V> | undefined>
+  set(node: AvlNode<K, V>): Promise<void>
+  delete(id: string): Promise<void>
+}
+
+export interface AvlNodeReadOnlyStorage<K, V> {
+  get(id: string | undefined): Promise<AvlNode<K, V> | undefined>
+}
 
 export interface AvlNode<K, V> {
   id: string
@@ -42,6 +31,50 @@ export interface AvlNode<K, V> {
   count: number
 }
 
+export class Transaction<K, V> {
+  constructor(private store: AvlNodeStorage<K, V>) {}
+
+  private cache: Record<string, AvlNode<K, V> | undefined> = {}
+  private writes: Record<string, AvlNode<K, V>> = {}
+
+  // Transactions have a caching layer to improve performance and also
+  // return data that is queued to be written.
+  async get(id: string | undefined): Promise<AvlNode<K, V> | undefined> {
+    if (!id) {
+      return
+    }
+    if (id in this.writes) {
+      return this.writes[id]
+    }
+    if (id in this.cache) {
+      return this.cache[id]
+    }
+    const data = await this.store.get(id)
+    this.cache[id] = data
+    return data
+  }
+
+  set(value: AvlNode<K, V>) {
+    const id = value.id
+    this.cache[id] = value
+    this.writes[id] = value
+  }
+
+  cleanup(node: AvlNode<K, V>) {
+    delete this.writes[node.id]
+  }
+
+  async commit() {
+    for (const node of Object.values(this.writes)) {
+      await this.store.set(node)
+    }
+    // Writable nodes can no longer be accessed after the transaction is written.
+    this.writes = {}
+    // Let the garbage collector clean up the cache.
+    this.cache = {}
+  }
+}
+
 function clone<K, V>(node: AvlNode<K, V>): AvlNode<K, V> {
   const newNode = {
     ...node,
@@ -50,48 +83,48 @@ function clone<K, V>(node: AvlNode<K, V>): AvlNode<K, V> {
   return newNode
 }
 
-function leftHeight<K, V>(args: {
+async function leftHeight<K, V>(args: {
   transaction: Transaction<K, V>
   node: AvlNode<K, V>
 }) {
   const { transaction, node } = args
-  const left = transaction.get(node.leftId)
+  const left = await transaction.get(node.leftId)
   if (!left) {
     return -1
   }
   return left.height
 }
 
-function rightHeight<K, V>(args: {
+async function rightHeight<K, V>(args: {
   transaction: Transaction<K, V>
   node: AvlNode<K, V>
 }) {
   const { transaction, node } = args
-  const right = transaction.get(node.rightId)
+  const right = await transaction.get(node.rightId)
   if (!right) {
     return -1
   }
   return right.height
 }
 
-function leftCount<K, V>(args: {
+async function leftCount<K, V>(args: {
   transaction: Transaction<K, V>
   node: AvlNode<K, V>
 }) {
   const { transaction, node } = args
-  const left = transaction.get(node.leftId)
+  const left = await transaction.get(node.leftId)
   if (!left) {
     return 0
   }
   return left.count
 }
 
-function rightCount<K, V>(args: {
+async function rightCount<K, V>(args: {
   transaction: Transaction<K, V>
   node: AvlNode<K, V>
 }) {
   const { transaction, node } = args
-  const right = transaction.get(node.rightId)
+  const right = await transaction.get(node.rightId)
   if (!right) {
     return 0
   }
@@ -108,7 +141,7 @@ function rightCount<K, V>(args: {
  *   c   d                           d   e
  *
  */
-function rotateRight<K, V>(args: {
+async function rotateRight<K, V>(args: {
   transaction: Transaction<K, V>
   root: AvlNode<K, V>
 }) {
@@ -116,7 +149,7 @@ function rotateRight<K, V>(args: {
   if (!root.leftId) {
     throw Error("Cannot rotateRight without a left!")
   }
-  const left = transaction.get(root.leftId)
+  const left = await transaction.get(root.leftId)
   if (!left) {
     throw Error("Cannot rotateRight without a left!")
   }
@@ -130,15 +163,15 @@ function rotateRight<K, V>(args: {
   a.rightId = b.id
   b.height =
     Math.max(
-      leftHeight({ transaction, node: b }),
-      rightHeight({ transaction, node: b })
+      await leftHeight({ transaction, node: b }),
+      await rightHeight({ transaction, node: b })
     ) + 1
-  a.height = Math.max(leftHeight({ transaction, node: a }), b.height) + 1
+  a.height = Math.max(await leftHeight({ transaction, node: a }), b.height) + 1
   b.count =
-    leftCount({ transaction, node: b }) +
-    rightCount({ transaction, node: b }) +
+    (await leftCount({ transaction, node: b })) +
+    (await rightCount({ transaction, node: b })) +
     1
-  a.count = leftCount({ transaction, node: a }) + b.count + 1
+  a.count = (await leftCount({ transaction, node: a })) + b.count + 1
 
   transaction.set(a)
   transaction.set(b)
@@ -155,7 +188,7 @@ function rotateRight<K, V>(args: {
  *     d   e                      c   d
  *
  */
-function rotateLeft<K, V>(args: {
+async function rotateLeft<K, V>(args: {
   transaction: Transaction<K, V>
   root: AvlNode<K, V>
 }) {
@@ -163,7 +196,7 @@ function rotateLeft<K, V>(args: {
   if (!root.rightId) {
     throw Error("Cannot rotateRight without a right!")
   }
-  const right = transaction.get(root.rightId)
+  const right = await transaction.get(root.rightId)
   if (!right) {
     throw Error("Cannot rotateRight without a right!")
   }
@@ -177,16 +210,16 @@ function rotateLeft<K, V>(args: {
   b.leftId = a.id
   a.height =
     Math.max(
-      leftHeight({ transaction, node: a }),
-      rightHeight({ transaction, node: a })
+      await leftHeight({ transaction, node: a }),
+      await rightHeight({ transaction, node: a })
     ) + 1
-  b.height = Math.max(rightHeight({ transaction, node: b }), a.height) + 1
+  b.height = Math.max(await rightHeight({ transaction, node: b }), a.height) + 1
 
   a.count =
-    leftCount({ transaction, node: a }) +
-    rightCount({ transaction, node: a }) +
+    (await leftCount({ transaction, node: a })) +
+    (await rightCount({ transaction, node: a })) +
     1
-  b.count = rightCount({ transaction, node: b }) + a.count + 1
+  b.count = (await rightCount({ transaction, node: b })) + a.count + 1
 
   transaction.set(a)
   transaction.set(b)
@@ -198,8 +231,8 @@ type Compare<K> = (a: K, b: K) => number
 /**
  * Find the path to a key or as close as possible.
  */
-function findPath<K, V>(args: {
-  store: AvlNodeReadOnlyStore<K, V>
+async function findPath<K, V>(args: {
+  store: AvlNodeReadOnlyStorage<K, V>
   compare: Compare<K>
   root: AvlNode<K, V>
   key: K
@@ -211,9 +244,9 @@ function findPath<K, V>(args: {
     stack.push(node)
     const direction = compare(key, node.key)
     if (direction < 0) {
-      node = store.get(node.leftId)
+      node = await store.get(node.leftId)
     } else if (direction > 0) {
-      node = store.get(node.rightId)
+      node = await store.get(node.rightId)
     } else {
       node = undefined
     }
@@ -239,13 +272,13 @@ function clonePath<K, V>(path: Array<AvlNode<K, V>>) {
   return newPath
 }
 
-export function insert<K, V>(args: {
+export async function insert<K, V>(args: {
   transaction: Transaction<K, V>
   root: AvlNode<K, V> | undefined
   compare: Compare<K>
   key: K
   value: V
-}): AvlNode<K, V> {
+}): Promise<AvlNode<K, V>> {
   const { transaction, root, compare, key, value } = args
 
   // Root doesn't exist.
@@ -264,7 +297,9 @@ export function insert<K, V>(args: {
   }
 
   // Find the path to where we want to insert.
-  const stack = clonePath(findPath({ store: transaction, compare, root, key }))
+  const stack = clonePath(
+    await findPath({ store: transaction, compare, root, key })
+  )
 
   // Insert at the end of the stack.
   const last = stack[stack.length - 1]
@@ -309,7 +344,7 @@ export function insert<K, V>(args: {
     // Warning: rebalancing is going to make the rest of the stack invalid.
     // That is why we're using `pop()` to ensure that we don't use it anymore.
     const node = stack.pop()!
-    const newNode = rebalanceInsert({ transaction, compare, key, node })
+    const newNode = await rebalanceInsert({ transaction, compare, key, node })
 
     // Update pointer from the previous node.
     if (node.id !== newNode.id) {
@@ -321,10 +356,10 @@ export function insert<K, V>(args: {
       }
     }
   }
-  return rebalanceInsert({ transaction, compare, key, node: stack[0] })
+  return await rebalanceInsert({ transaction, compare, key, node: stack[0] })
 }
 
-function rebalanceInsert<K, V>(args: {
+async function rebalanceInsert<K, V>(args: {
   transaction: Transaction<K, V>
   compare: Compare<K>
   key: K
@@ -335,36 +370,38 @@ function rebalanceInsert<K, V>(args: {
   // Update height and rebalance tree
   node.height =
     Math.max(
-      leftHeight({ transaction, node }),
-      rightHeight({ transaction, node })
+      await leftHeight({ transaction, node }),
+      await rightHeight({ transaction, node })
     ) + 1
   node.count =
-    leftCount({ transaction, node }) + rightCount({ transaction, node }) + 1
+    (await leftCount({ transaction, node })) +
+    (await rightCount({ transaction, node })) +
+    1
 
-  const balanceState = getBalanceState({ transaction, node })
+  const balanceState = await getBalanceState({ transaction, node })
 
   if (balanceState === BalanceState.UNBALANCED_LEFT) {
-    const left = transaction.get(node.leftId)!
+    const left = (await transaction.get(node.leftId))!
     const direction = compare(key, left.key)
     if (direction < 0) {
       // Left left case
       return rotateRight({ transaction, root: node })
     } else {
       // Left right case
-      node.leftId = rotateLeft({ transaction, root: left }).id
+      node.leftId = (await rotateLeft({ transaction, root: left })).id
       return rotateRight({ transaction, root: node })
     }
   }
 
   if (balanceState === BalanceState.UNBALANCED_RIGHT) {
-    const right = transaction.get(node.rightId)!
+    const right = (await transaction.get(node.rightId))!
     const direction = compare(key, right.key)
     if (direction > 0) {
       // Right right case
       return rotateLeft({ transaction, root: node })
     } else {
       // Right left case
-      node.rightId = rotateRight({ transaction, root: right }).id
+      node.rightId = (await rotateRight({ transaction, root: right })).id
       return rotateLeft({ transaction, root: node })
     }
   }
@@ -372,12 +409,12 @@ function rebalanceInsert<K, V>(args: {
   return node
 }
 
-export function remove<K, V>(args: {
+export async function remove<K, V>(args: {
   transaction: Transaction<K, V>
   root: AvlNode<K, V> | undefined
   compare: Compare<K>
   key: K
-}): AvlNode<K, V> | undefined {
+}): Promise<AvlNode<K, V> | undefined> {
   const { transaction, root, compare, key } = args
 
   // Empty tree.
@@ -385,7 +422,9 @@ export function remove<K, V>(args: {
     return
   }
 
-  const stack = clonePath(findPath({ store: transaction, compare, root, key }))
+  const stack = clonePath(
+    await findPath({ store: transaction, compare, root, key })
+  )
   const last = stack.pop()!
   const prev = stack[stack.length - 1]
 
@@ -400,8 +439,8 @@ export function remove<K, V>(args: {
   }
 
   // Remove from the end of the stack.
-  const left = transaction.get(last.leftId)
-  const right = transaction.get(last.rightId)
+  const left = await transaction.get(last.leftId)
+  const right = await transaction.get(last.rightId)
 
   if (!left && !right) {
     // Update pointer from the previous node.
@@ -442,13 +481,13 @@ export function remove<K, V>(args: {
     }
   } else if (left && right) {
     // Node has 2 children, get the in-order successor.
-    const inOrderSuccessor = minNode({ transaction, root: right })
+    const inOrderSuccessor = await minNode({ transaction, root: right })
     last.key = inOrderSuccessor.key
     last.value = inOrderSuccessor.value
 
     // Note: this will never recur more than once because we've already
     // found the key we want to remove.
-    const newRight = remove({
+    const newRight = await remove({
       transaction,
       compare,
       root: right,
@@ -464,7 +503,7 @@ export function remove<K, V>(args: {
     // Warning: rebalancing is going to make the rest of the stack invalid.
     // That is why we're using `pop()` to ensure that we don't use it anymore.
     const node = stack.pop()!
-    const newNode = rebalanceRemove({ transaction, node })
+    const newNode = await rebalanceRemove({ transaction, node })
 
     // Update pointer from the previous node.
     if (node.id !== newNode.id) {
@@ -476,10 +515,10 @@ export function remove<K, V>(args: {
       }
     }
   }
-  return rebalanceRemove({ transaction, node: stack[0] })
+  return await rebalanceRemove({ transaction, node: stack[0] })
 }
 
-function rebalanceRemove<K, V>(args: {
+async function rebalanceRemove<K, V>(args: {
   transaction: Transaction<K, V>
   node: AvlNode<K, V>
 }) {
@@ -488,58 +527,60 @@ function rebalanceRemove<K, V>(args: {
   // Update height and rebalance tree
   node.height =
     Math.max(
-      leftHeight({ transaction, node: node }),
-      rightHeight({ transaction, node: node })
+      await leftHeight({ transaction, node: node }),
+      await rightHeight({ transaction, node: node })
     ) + 1
   node.count =
-    leftCount({ transaction, node: node }) +
-    rightCount({ transaction, node: node }) +
+    (await leftCount({ transaction, node: node })) +
+    (await rightCount({ transaction, node: node })) +
     1
 
-  const balanceState = getBalanceState({ transaction, node: node })
+  const balanceState = await getBalanceState({ transaction, node: node })
   if (balanceState === BalanceState.UNBALANCED_LEFT) {
-    const left = transaction.get(node.leftId)
+    const left = await transaction.get(node.leftId)
     if (!left) {
       throw new Error("Left must exist!")
     }
     // Left left case
     if (
-      getBalanceState({ transaction, node: left }) === BalanceState.BALANCED ||
-      getBalanceState({ transaction, node: left }) ===
+      (await getBalanceState({ transaction, node: left })) ===
+        BalanceState.BALANCED ||
+      (await getBalanceState({ transaction, node: left })) ===
         BalanceState.SLIGHTLY_UNBALANCED_LEFT
     ) {
       return rotateRight({ transaction, root: node })
     }
     // Left right case
     if (
-      getBalanceState({ transaction, node: left }) ===
+      (await getBalanceState({ transaction, node: left })) ===
       BalanceState.SLIGHTLY_UNBALANCED_RIGHT
     ) {
-      node.leftId = rotateLeft({ transaction, root: left }).id
+      node.leftId = (await rotateLeft({ transaction, root: left })).id
       return rotateRight({ transaction, root: node })
     }
   }
 
   if (balanceState === BalanceState.UNBALANCED_RIGHT) {
-    const right = transaction.get(node.rightId)
+    const right = await transaction.get(node.rightId)
     if (!right) {
       throw new Error("Right must exist!")
     }
 
     // Right right case
     if (
-      getBalanceState({ transaction, node: right }) === BalanceState.BALANCED ||
-      getBalanceState({ transaction, node: right }) ===
+      (await getBalanceState({ transaction, node: right })) ===
+        BalanceState.BALANCED ||
+      (await getBalanceState({ transaction, node: right })) ===
         BalanceState.SLIGHTLY_UNBALANCED_RIGHT
     ) {
       return rotateLeft({ transaction, root: node })
     }
     // Right left case
     if (
-      getBalanceState({ transaction, node: right }) ===
+      (await getBalanceState({ transaction, node: right })) ===
       BalanceState.SLIGHTLY_UNBALANCED_LEFT
     ) {
-      node.rightId = rotateRight({ transaction, root: right }).id
+      node.rightId = (await rotateRight({ transaction, root: right })).id
       return rotateLeft({ transaction, root: node })
     }
   }
@@ -550,14 +591,14 @@ function rebalanceRemove<K, V>(args: {
 /**
  * Gets the minimum node, rooted in a particular node.
  */
-function minNode<K, V>(args: {
+async function minNode<K, V>(args: {
   transaction: Transaction<K, V>
   root: AvlNode<K, V>
 }) {
   const { transaction, root } = args
   let current = root
   let left: AvlNode<K, V> | undefined
-  while ((left = transaction.get(current.leftId))) {
+  while ((left = await transaction.get(current.leftId))) {
     current = left
   }
   return current
@@ -566,14 +607,14 @@ function minNode<K, V>(args: {
 /**
  * Gets the maximum node, rooted in a particular node.
  */
-function maxNode<K, V>(args: {
+async function maxNode<K, V>(args: {
   transaction: Transaction<K, V>
   root: AvlNode<K, V>
 }) {
   const { transaction, root } = args
   let current = root
   let right: AvlNode<K, V> | undefined
-  while ((right = transaction.get(current.rightId))) {
+  while ((right = await transaction.get(current.rightId))) {
     current = right
   }
   return current
@@ -594,11 +635,11 @@ const BalanceState = {
  * Gets the balance state of a node, indicating whether the left or right
  * sub-trees are unbalanced.
  */
-function getBalanceState<K, V>(args: {
+async function getBalanceState<K, V>(args: {
   transaction: Transaction<K, V>
   node: AvlNode<K, V>
 }) {
-  const heightDifference = leftHeight(args) - rightHeight(args)
+  const heightDifference = (await leftHeight(args)) - (await rightHeight(args))
   switch (heightDifference) {
     case -2:
       return BalanceState.UNBALANCED_RIGHT
@@ -617,12 +658,12 @@ function getBalanceState<K, V>(args: {
  * A convenient abstraction that isn't quite so functional.
  */
 export class AvlTree<K, V> {
-  store: AvlNodeStore<K, V>
+  store: AvlNodeStorage<K, V>
   root: AvlNode<K, V> | undefined
   compare: Compare<K>
 
   constructor(args: {
-    store: AvlNodeStore<K, V>
+    store: AvlNodeStorage<K, V>
     root: AvlNode<K, V> | undefined
     compare: Compare<K>
   }) {
@@ -631,16 +672,16 @@ export class AvlTree<K, V> {
     this.compare = args.compare
   }
 
-  insert(key: K, value: V) {
+  async insert(key: K, value: V) {
     const transaction = new Transaction(this.store)
-    const newRoot = insert({
+    const newRoot = await insert({
       transaction,
       compare: this.compare,
       root: this.root,
       key: key,
       value: value,
     })
-    transaction.commit()
+    await transaction.commit()
     // TODO: this should be persisted.
     return new AvlTree({
       store: this.store,
@@ -649,15 +690,15 @@ export class AvlTree<K, V> {
     })
   }
 
-  remove(key: K) {
+  async remove(key: K) {
     const transaction = new Transaction(this.store)
-    const newRoot = remove({
+    const newRoot = await remove({
       transaction,
       compare: this.compare,
       root: this.root,
       key,
     })
-    transaction.commit()
+    await transaction.commit()
     // TODO: this should be persisted.
     return new AvlTree({
       store: this.store,
@@ -666,26 +707,26 @@ export class AvlTree<K, V> {
     })
   }
 
-  get(key: K): V | undefined {
+  async get(key: K): Promise<V | undefined> {
     const { store, root, compare } = this
     let node = root
     while (node) {
       const direction = compare(key, node.key)
       if (direction < 0) {
-        node = store.get(node.leftId)
+        node = await store.get(node.leftId)
       } else if (direction > 0) {
-        node = store.get(node.rightId)
+        node = await store.get(node.rightId)
       } else {
         return node.value
       }
     }
   }
 
-  find(key: K): AvlTreeIterator<K, V> {
+  async find(key: K): Promise<AvlTreeIterator<K, V>> {
     if (!this.root) {
       return new AvlTreeIterator({ tree: this, stack: [] })
     }
-    const stack = findPath({
+    const stack = await findPath({
       store: this.store,
       compare: this.compare,
       root: this.root,
@@ -699,22 +740,22 @@ export class AvlTree<K, V> {
     }
   }
 
-  begin(): AvlTreeIterator<K, V> {
+  async begin(): Promise<AvlTreeIterator<K, V>> {
     let node = this.root
     const stack: Array<AvlNode<K, V>> = []
     while (node) {
       stack.push(node)
-      node = this.store.get(node.leftId)
+      node = await this.store.get(node.leftId)
     }
     return new AvlTreeIterator({ tree: this, stack })
   }
 
-  end(): AvlTreeIterator<K, V> {
+  async end(): Promise<AvlTreeIterator<K, V>> {
     let node = this.root
     const stack: Array<AvlNode<K, V>> = []
     while (node) {
       stack.push(node)
-      node = this.store.get(node.rightId)
+      node = await this.store.get(node.rightId)
     }
     return new AvlTreeIterator({ tree: this, stack })
   }
@@ -722,7 +763,7 @@ export class AvlTree<K, V> {
   /**
    * Find the nth item in the tree.
    */
-  at(idx: number): AvlTreeIterator<K, V> {
+  async at(idx: number): Promise<AvlTreeIterator<K, V>> {
     const root = this.root
     if (idx < 0 || !root) {
       return new AvlTreeIterator({ tree: this, stack: [] })
@@ -731,7 +772,7 @@ export class AvlTree<K, V> {
     const stack: Array<AvlNode<K, V>> = []
     while (true) {
       stack.push(node)
-      const left = this.store.get(node.leftId)
+      const left = await this.store.get(node.leftId)
       if (left) {
         if (idx < left.count) {
           node = left
@@ -743,7 +784,7 @@ export class AvlTree<K, V> {
         return new AvlTreeIterator({ tree: this, stack: stack })
       }
       idx -= 1
-      const right = this.store.get(node.rightId)
+      const right = await this.store.get(node.rightId)
       if (right) {
         if (idx >= right.count) {
           break
@@ -756,7 +797,7 @@ export class AvlTree<K, V> {
     return new AvlTreeIterator({ tree: this, stack: [] })
   }
 
-  ge(key: K): AvlTreeIterator<K, V> {
+  async ge(key: K): Promise<AvlTreeIterator<K, V>> {
     let node = this.root
     const stack: Array<AvlNode<K, V>> = []
     let last_ptr = 0
@@ -767,9 +808,9 @@ export class AvlTree<K, V> {
         last_ptr = stack.length
       }
       if (direction <= 0) {
-        node = this.store.get(node.leftId)
+        node = await this.store.get(node.leftId)
       } else {
-        node = this.store.get(node.rightId)
+        node = await this.store.get(node.rightId)
       }
     }
     // TODO: this feels sketchy
@@ -777,7 +818,7 @@ export class AvlTree<K, V> {
     return new AvlTreeIterator({ tree: this, stack })
   }
 
-  gt(key: K): AvlTreeIterator<K, V> {
+  async gt(key: K): Promise<AvlTreeIterator<K, V>> {
     let node = this.root
     const stack: Array<AvlNode<K, V>> = []
     let last_ptr = 0
@@ -788,9 +829,9 @@ export class AvlTree<K, V> {
         last_ptr = stack.length
       }
       if (direction < 0) {
-        node = this.store.get(node.leftId)
+        node = await this.store.get(node.leftId)
       } else {
-        node = this.store.get(node.rightId)
+        node = await this.store.get(node.rightId)
       }
     }
     // TODO: this feels sketchy
@@ -798,7 +839,7 @@ export class AvlTree<K, V> {
     return new AvlTreeIterator({ tree: this, stack })
   }
 
-  lt(key: K): AvlTreeIterator<K, V> {
+  async lt(key: K): Promise<AvlTreeIterator<K, V>> {
     let node = this.root
     const stack: Array<AvlNode<K, V>> = []
     let last_ptr = 0
@@ -809,9 +850,9 @@ export class AvlTree<K, V> {
         last_ptr = stack.length
       }
       if (direction <= 0) {
-        node = this.store.get(node.leftId)
+        node = await this.store.get(node.leftId)
       } else {
-        node = this.store.get(node.rightId)
+        node = await this.store.get(node.rightId)
       }
     }
     // TODO: this feels sketchy
@@ -819,7 +860,7 @@ export class AvlTree<K, V> {
     return new AvlTreeIterator({ tree: this, stack })
   }
 
-  le(key: K): AvlTreeIterator<K, V> {
+  async le(key: K): Promise<AvlTreeIterator<K, V>> {
     let node = this.root
     const stack: Array<AvlNode<K, V>> = []
     let last_ptr = 0
@@ -830,9 +871,9 @@ export class AvlTree<K, V> {
         last_ptr = stack.length
       }
       if (direction < 0) {
-        node = this.store.get(node.leftId)
+        node = await this.store.get(node.leftId)
       } else {
-        node = this.store.get(node.rightId)
+        node = await this.store.get(node.rightId)
       }
     }
     // TODO: this feels sketchy
@@ -841,18 +882,28 @@ export class AvlTree<K, V> {
   }
 
   // This allows you to do forEach
-  *[Symbol.iterator]() {
-    let iter = this.begin()
+  // async *[Symbol.iterator]() {
+  //   let iter = await this.begin()
+  //   while (iter.valid) {
+  //     yield iter.node!
+  //     await iter.next()
+  //   }
+  // }
+
+  async nodes() {
+    const items: Array<AvlNode<K, V>> = []
+    let iter = await this.begin()
     while (iter.valid) {
-      yield iter.node!
-      iter.next()
+      items.push(iter.node!)
+      await iter.next()
     }
+    return items
   }
 
   walk() {
     return new AvlTreeWalker({
       store: this.store,
-      node: this.root,
+      node: Promise.resolve(this.root),
     })
   }
 
@@ -895,7 +946,7 @@ export class AvlTreeIterator<K, V> {
   /**
    * Returns the position of the node this iterator is point to in the sorted list.
    */
-  index() {
+  async index() {
     let idx = 0
     let stack = this.stack
     if (stack.length === 0) {
@@ -905,7 +956,7 @@ export class AvlTreeIterator<K, V> {
       }
       return 0
     } else {
-      const left = this.tree.store.get(stack[stack.length - 1].leftId)
+      const left = await this.tree.store.get(stack[stack.length - 1].leftId)
       if (left) {
         idx = left.count
       }
@@ -913,7 +964,7 @@ export class AvlTreeIterator<K, V> {
     for (let s = stack.length - 2; s >= 0; --s) {
       if (stack[s + 1].id === stack[s].rightId) {
         ++idx
-        const left = this.tree.store.get(stack[s].leftId)
+        const left = await this.tree.store.get(stack[s].leftId)
         if (left) {
           idx += left.count
         }
@@ -925,18 +976,18 @@ export class AvlTreeIterator<K, V> {
   /**
    * Advances iterator to next element in list.
    */
-  next() {
+  async next() {
     let stack = this.stack
     if (stack.length === 0) {
       throw new Error("Invalid iterator")
     }
     let n: AvlNode<K, V> | undefined = stack[stack.length - 1]
-    const right = this.tree.store.get(n.rightId)
+    const right = await this.tree.store.get(n.rightId)
     if (right) {
       n = right
       while (n) {
         stack.push(n)
-        n = this.tree.store.get(n.leftId)
+        n = await this.tree.store.get(n.leftId)
       }
     } else {
       stack.pop()
@@ -950,18 +1001,18 @@ export class AvlTreeIterator<K, V> {
   /**
    * Moves iterator backward one element.
    */
-  prev() {
+  async prev() {
     const stack = this.stack
     if (stack.length === 0) {
       throw new Error("Invalid iterator")
     }
     let n: AvlNode<K, V> | undefined = stack[stack.length - 1]
-    const left = this.tree.store.get(n.leftId)
+    const left = await this.tree.store.get(n.leftId)
     if (left) {
       n = left
       while (n) {
         stack.push(n)
-        n = this.tree.store.get(n.rightId)
+        n = await this.tree.store.get(n.rightId)
       }
     } else {
       stack.pop()
@@ -1019,54 +1070,46 @@ export class AvlTreeIterator<K, V> {
  * A helper method for walking a a tree.
  */
 export class AvlTreeWalker<K, V> {
-  store: AvlNodeStore<K, V>
-  node: AvlNode<K, V> | undefined
+  store: AvlNodeStorage<K, V>
+  node: Promise<AvlNode<K, V> | undefined>
 
   constructor(args: {
-    store: AvlNodeStore<K, V>
-    node: AvlNode<K, V> | undefined
+    store: AvlNodeStorage<K, V>
+    node: Promise<AvlNode<K, V> | undefined>
   }) {
     this.store = args.store
     this.node = args.node
   }
 
   get left() {
-    if (this.node) {
-      const left = this.store.get(this.node.leftId)
-      if (left) {
-        return new AvlTreeWalker({
-          store: this.store,
-          node: left,
-        })
-      }
-    }
+    const left = this.node.then(n => n && this.store.get(n.leftId))
+    return new AvlTreeWalker({
+      store: this.store,
+      node: left,
+    })
   }
 
   get right() {
-    if (this.node) {
-      const right = this.store.get(this.node.rightId)
-      if (right) {
-        return new AvlTreeWalker({
-          store: this.store,
-          node: right,
-        })
-      }
-    }
+    const right = this.node.then(n => n && this.store.get(n.rightId))
+    return new AvlTreeWalker({
+      store: this.store,
+      node: right,
+    })
   }
 }
 
-function printNode<K, V>(
+async function printNode<K, V>(
   node: AvlNode<K, V> | undefined,
-  store: AvlNodeReadOnlyStore<K, V>,
+  store: AvlNodeReadOnlyStorage<K, V>,
   indent = ""
-): any {
+): Promise<any> {
   if (!node) {
     return
   }
   return [
     indent + node.key + "(" + node.count + ")",
-    printNode(store.get(node?.leftId), store, indent + "l:"),
-    printNode(store.get(node?.rightId), store, indent + "r:"),
+    await printNode(await store.get(node?.leftId), store, indent + "l:"),
+    await printNode(await store.get(node?.rightId), store, indent + "r:"),
   ]
     .filter(Boolean)
     .join("\n")

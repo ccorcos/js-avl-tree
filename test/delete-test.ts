@@ -5,24 +5,24 @@ import { compare } from "../src/utils"
 
 const store = new AvlNodeStore<any, any>(new InMemoryKeyValueStore())
 
-test("should not change the size of a tree with no root", function(t) {
+test("should not change the size of a tree with no root", async function(t) {
   let tree = new AvlTree<number, number>({
     store: store,
     root: undefined,
     compare: compare,
   })
-  tree = tree.remove(1)
+  tree = await tree.remove(1)
   t.is(tree.root, undefined)
 })
 
-test("should delete a single key", function(t) {
+test("should delete a single key", async function(t) {
   let tree = new AvlTree<number, number>({
     store: store,
     root: undefined,
     compare: compare,
   })
-  tree = tree.insert(1, 1)
-  tree = tree.remove(1)
+  tree = await tree.insert(1, 1)
+  tree = await tree.remove(1)
   t.is(tree.root, undefined)
 })
 
@@ -33,30 +33,30 @@ test("should delete a single key", function(t) {
  *    / \                             /
  *   1   3                           3
  */
-test("should correctly balance the left left case", function(t) {
+test("should correctly balance the left left case", async function(t) {
   let tree = new AvlTree<number, number>({
     store: store,
     root: undefined,
     compare: compare,
   })
-  tree = tree.insert(4, 4)
-  tree = tree.insert(2, 2)
-  tree = tree.insert(6, 6)
-  tree = tree.insert(3, 3)
-  tree = tree.insert(5, 5)
-  tree = tree.insert(1, 1)
-  tree = tree.insert(7, 7)
-  tree = tree.remove(7)
-  tree = tree.remove(5)
-  tree = tree.remove(6)
+  tree = await tree.insert(4, 4)
+  tree = await tree.insert(2, 2)
+  tree = await tree.insert(6, 6)
+  tree = await tree.insert(3, 3)
+  tree = await tree.insert(5, 5)
+  tree = await tree.insert(1, 1)
+  tree = await tree.insert(7, 7)
+  tree = await tree.remove(7)
+  tree = await tree.remove(5)
+  tree = await tree.remove(6)
   t.is(tree.root?.key, 2)
   t.is(tree.root?.value, 2)
-  t.is(tree.walk().left?.node?.key, 1)
-  t.is(tree.walk().left?.node?.value, 1)
-  t.is(tree.walk().right?.node?.key, 4)
-  t.is(tree.walk().right?.node?.value, 4)
-  t.is(tree.walk().right?.left?.node?.key, 3)
-  t.is(tree.walk().right?.left?.node?.value, 3)
+  t.is((await tree.walk().left.node)?.key, 1)
+  t.is((await tree.walk().left.node)?.value, 1)
+  t.is((await tree.walk().right.node)?.key, 4)
+  t.is((await tree.walk().right.node)?.value, 4)
+  t.is((await tree.walk().right.left.node)?.key, 3)
+  t.is((await tree.walk().right.left.node)?.value, 3)
 })
 
 /**
@@ -66,30 +66,30 @@ test("should correctly balance the left left case", function(t) {
  *          / \                   \
  *         5   7                  5
  */
-test("should correctly balance the right right case", function(t) {
+test("should correctly balance the right right case", async function(t) {
   let tree = new AvlTree<number, number>({
     store: store,
     root: undefined,
     compare: compare,
   })
-  tree = tree.insert(4, 4)
-  tree = tree.insert(2, 2)
-  tree = tree.insert(6, 6)
-  tree = tree.insert(3, 3)
-  tree = tree.insert(5, 5)
-  tree = tree.insert(1, 1)
-  tree = tree.insert(7, 7)
-  tree = tree.remove(1)
-  tree = tree.remove(3)
-  tree = tree.remove(2)
+  tree = await tree.insert(4, 4)
+  tree = await tree.insert(2, 2)
+  tree = await tree.insert(6, 6)
+  tree = await tree.insert(3, 3)
+  tree = await tree.insert(5, 5)
+  tree = await tree.insert(1, 1)
+  tree = await tree.insert(7, 7)
+  tree = await tree.remove(1)
+  tree = await tree.remove(3)
+  tree = await tree.remove(2)
   t.is(tree.root?.key, 6)
   t.is(tree.root?.value, 6)
-  t.is(tree.walk().left?.node?.key, 4)
-  t.is(tree.walk().left?.node?.value, 4)
-  t.is(tree.walk().left?.right?.node?.key, 5)
-  t.is(tree.walk().left?.right?.node?.value, 5)
-  t.is(tree.walk().right?.node?.key, 7)
-  t.is(tree.walk().right?.node?.value, 7)
+  t.is((await tree.walk().left.node)?.key, 4)
+  t.is((await tree.walk().left.node)?.value, 4)
+  t.is((await tree.walk().left.right.node)?.key, 5)
+  t.is((await tree.walk().left.right.node)?.value, 5)
+  t.is((await tree.walk().right.node)?.key, 7)
+  t.is((await tree.walk().right.node)?.value, 7)
 })
 
 /**
@@ -101,35 +101,35 @@ test("should correctly balance the right right case", function(t) {
  *      / \
  *     3   5
  */
-test("should correctly balance the left right case", function(t) {
+test("should correctly balance the left right case", async function(t) {
   let tree = new AvlTree<number, number>({
     store: store,
     root: undefined,
     compare: compare,
   })
-  tree = tree.insert(6, 6)
-  tree = tree.insert(2, 2)
-  tree = tree.insert(7, 7)
-  tree = tree.insert(1, 1)
-  tree = tree.insert(8, 8)
-  tree = tree.insert(4, 4)
-  tree = tree.insert(3, 3)
-  tree = tree.insert(5, 5)
-  tree = tree.remove(8)
+  tree = await tree.insert(6, 6)
+  tree = await tree.insert(2, 2)
+  tree = await tree.insert(7, 7)
+  tree = await tree.insert(1, 1)
+  tree = await tree.insert(8, 8)
+  tree = await tree.insert(4, 4)
+  tree = await tree.insert(3, 3)
+  tree = await tree.insert(5, 5)
+  tree = await tree.remove(8)
   t.is(tree.root?.key, 4)
   t.is(tree.root?.value, 4)
-  t.is(tree.walk().left?.node?.key, 2)
-  t.is(tree.walk().left?.node?.value, 2)
-  t.is(tree.walk().left?.left?.node?.key, 1)
-  t.is(tree.walk().left?.left?.node?.value, 1)
-  t.is(tree.walk().left?.right?.node?.key, 3)
-  t.is(tree.walk().left?.right?.node?.value, 3)
-  t.is(tree.walk().right?.node?.key, 6)
-  t.is(tree.walk().right?.node?.value, 6)
-  t.is(tree.walk().right?.left?.node?.key, 5)
-  t.is(tree.walk().right?.left?.node?.value, 5)
-  t.is(tree.walk().right?.right?.node?.key, 7)
-  t.is(tree.walk().right?.right?.node?.value, 7)
+  t.is((await tree.walk().left.node)?.key, 2)
+  t.is((await tree.walk().left.node)?.value, 2)
+  t.is((await tree.walk().left.left.node)?.key, 1)
+  t.is((await tree.walk().left.left.node)?.value, 1)
+  t.is((await tree.walk().left.right.node)?.key, 3)
+  t.is((await tree.walk().left.right.node)?.value, 3)
+  t.is((await tree.walk().right.node)?.key, 6)
+  t.is((await tree.walk().right.node)?.value, 6)
+  t.is((await tree.walk().right.left.node)?.key, 5)
+  t.is((await tree.walk().right.left.node)?.value, 5)
+  t.is((await tree.walk().right.right.node)?.key, 7)
+  t.is((await tree.walk().right.right.node)?.value, 7)
 })
 
 /**
@@ -141,89 +141,89 @@ test("should correctly balance the left right case", function(t) {
  *        / \
  *       4   6
  */
-test("should correctly balance the right left case", function(t) {
+test("should correctly balance the right left case", async function(t) {
   let tree = new AvlTree<number, number>({
     store: store,
     root: undefined,
     compare: compare,
   })
-  tree = tree.insert(3, 3)
-  tree = tree.insert(2, 2)
-  tree = tree.insert(7, 7)
-  tree = tree.insert(1, 1)
-  tree = tree.insert(8, 8)
-  tree = tree.insert(5, 5)
-  tree = tree.insert(4, 4)
-  tree = tree.insert(6, 6)
-  tree = tree.remove(1)
+  tree = await tree.insert(3, 3)
+  tree = await tree.insert(2, 2)
+  tree = await tree.insert(7, 7)
+  tree = await tree.insert(1, 1)
+  tree = await tree.insert(8, 8)
+  tree = await tree.insert(5, 5)
+  tree = await tree.insert(4, 4)
+  tree = await tree.insert(6, 6)
+  tree = await tree.remove(1)
   t.is(tree.root?.key, 5)
   t.is(tree.root?.value, 5)
-  t.is(tree.walk().left?.node?.key, 3)
-  t.is(tree.walk().left?.node?.value, 3)
-  t.is(tree.walk().left?.left?.node?.key, 2)
-  t.is(tree.walk().left?.left?.node?.value, 2)
-  t.is(tree.walk().left?.right?.node?.key, 4)
-  t.is(tree.walk().left?.right?.node?.value, 4)
-  t.is(tree.walk().right?.node?.key, 7)
-  t.is(tree.walk().right?.node?.value, 7)
-  t.is(tree.walk().right?.left?.node?.key, 6)
-  t.is(tree.walk().right?.left?.node?.value, 6)
-  t.is(tree.walk().right?.right?.node?.key, 8)
-  t.is(tree.walk().right?.right?.node?.value, 8)
+  t.is((await tree.walk().left.node)?.key, 3)
+  t.is((await tree.walk().left.node)?.value, 3)
+  t.is((await tree.walk().left.left.node)?.key, 2)
+  t.is((await tree.walk().left.left.node)?.value, 2)
+  t.is((await tree.walk().left.right.node)?.key, 4)
+  t.is((await tree.walk().left.right.node)?.value, 4)
+  t.is((await tree.walk().right.node)?.key, 7)
+  t.is((await tree.walk().right.node)?.value, 7)
+  t.is((await tree.walk().right.left.node)?.key, 6)
+  t.is((await tree.walk().right.left.node)?.value, 6)
+  t.is((await tree.walk().right.right.node)?.key, 8)
+  t.is((await tree.walk().right.right.node)?.value, 8)
 })
 
-test("should take the right child if the left does not exist", function(t) {
+test("should take the right child if the left does not exist", async function(t) {
   let tree = new AvlTree<number, number>({
     store: store,
     root: undefined,
     compare: compare,
   })
-  tree = tree.insert(1, 1)
-  tree = tree.insert(2, 2)
-  tree = tree.remove(1)
+  tree = await tree.insert(1, 1)
+  tree = await tree.insert(2, 2)
+  tree = await tree.remove(1)
   t.is(tree.root?.key, 2)
   t.is(tree.root?.value, 2)
 })
 
-test("should take the left child if the right does not exist", function(t) {
+test("should take the left child if the right does not exist", async function(t) {
   let tree = new AvlTree<number, number>({
     store: store,
     root: undefined,
     compare: compare,
   })
-  tree = tree.insert(2, 2)
-  tree = tree.insert(1, 1)
-  tree = tree.remove(2)
+  tree = await tree.insert(2, 2)
+  tree = await tree.insert(1, 1)
+  tree = await tree.remove(2)
   t.is(tree.root?.key, 1)
   t.is(tree.root?.value, 1)
 })
 
-test("should get the right child if the node has 2 leaf children", function(t) {
+test("should get the right child if the node has 2 leaf children", async function(t) {
   let tree = new AvlTree<number, number>({
     store: store,
     root: undefined,
     compare: compare,
   })
-  tree = tree.insert(2, 2)
-  tree = tree.insert(1, 1)
-  tree = tree.insert(3, 3)
-  tree = tree.remove(2)
+  tree = await tree.insert(2, 2)
+  tree = await tree.insert(1, 1)
+  tree = await tree.insert(3, 3)
+  tree = await tree.remove(2)
   t.is(tree.root?.key, 3)
   t.is(tree.root?.value, 3)
 })
 
-test("should get the in-order successor if the node has both children", function(t) {
+test("should get the in-order successor if the node has both children", async function(t) {
   let tree = new AvlTree<number, number>({
     store: store,
     root: undefined,
     compare: compare,
   })
-  tree = tree.insert(2, 2)
-  tree = tree.insert(1, 1)
-  tree = tree.insert(4, 4)
-  tree = tree.insert(3, 3)
-  tree = tree.insert(5, 5)
-  tree = tree.remove(2)
+  tree = await tree.insert(2, 2)
+  tree = await tree.insert(1, 1)
+  tree = await tree.insert(4, 4)
+  tree = await tree.insert(3, 3)
+  tree = await tree.insert(5, 5)
+  tree = await tree.remove(2)
   t.is(tree.root?.key, 3)
   t.is(tree.root?.value, 3)
 })

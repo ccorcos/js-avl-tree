@@ -5,28 +5,28 @@ import { compare } from "../src/utils"
 
 const store = new AvlNodeStore<any, any>(new InMemoryKeyValueStore())
 
-test("should return the size of the tree", function(t) {
+test("should return the size of the tree", async function(t) {
   let tree = new AvlTree<number, number>({
     store: store,
     root: undefined,
     compare: compare,
   })
-  tree = tree.insert(1, 1)
-  tree = tree.insert(2, 1)
-  tree = tree.insert(3, 1)
-  tree = tree.insert(4, 1)
-  tree = tree.insert(5, 1)
+  tree = await tree.insert(1, 1)
+  tree = await tree.insert(2, 1)
+  tree = await tree.insert(3, 1)
+  tree = await tree.insert(4, 1)
+  tree = await tree.insert(5, 1)
   t.is(tree.root?.count, 5)
 })
 
-test("should ignore insert of duplicate key", function(t) {
+test("should ignore insert of duplicate key", async function(t) {
   let tree = new AvlTree<number, number>({
     store: store,
     root: undefined,
     compare: compare,
   })
-  tree = tree.insert(1, 1)
-  tree = tree.insert(1, 1)
+  tree = await tree.insert(1, 1)
+  tree = await tree.insert(1, 1)
   t.is(tree.root?.count, 1)
 })
 
@@ -39,15 +39,15 @@ test("should ignore insert of duplicate key", function(t) {
  *    / \           w   x y   z
  *   w   x
  */
-test("should correctly balance the left left case", function(t) {
+test("should correctly balance the left left case", async function(t) {
   let tree = new AvlTree<number, number>({
     store: store,
     root: undefined,
     compare: compare,
   })
-  tree = tree.insert(3, 1)
-  tree = tree.insert(2, 1)
-  tree = tree.insert(1, 1)
+  tree = await tree.insert(3, 1)
+  tree = await tree.insert(2, 1)
+  tree = await tree.insert(1, 1)
   t.is(tree.root?.key, 2)
 })
 
@@ -60,15 +60,15 @@ test("should correctly balance the left left case", function(t) {
  *      / \       w   x y   z
  *     x   y
  */
-test("should correctly balance the left right case", function(t) {
+test("should correctly balance the left right case", async function(t) {
   let tree = new AvlTree<number, number>({
     store: store,
     root: undefined,
     compare: compare,
   })
-  tree = tree.insert(3, 1)
-  tree = tree.insert(1, 1)
-  tree = tree.insert(2, 1)
+  tree = await tree.insert(3, 1)
+  tree = await tree.insert(1, 1)
+  tree = await tree.insert(2, 1)
   t.is(tree.root?.key, 2)
 })
 
@@ -81,15 +81,15 @@ test("should correctly balance the left right case", function(t) {
  *        / \       w   x y   z
  *       y   z
  */
-test("should correctly balance the right right case", function(t) {
+test("should correctly balance the right right case", async function(t) {
   let tree = new AvlTree<number, number>({
     store: store,
     root: undefined,
     compare: compare,
   })
-  tree = tree.insert(1, 1)
-  tree = tree.insert(2, 1)
-  tree = tree.insert(3, 1)
+  tree = await tree.insert(1, 1)
+  tree = await tree.insert(2, 1)
+  tree = await tree.insert(3, 1)
   t.is(tree.root?.key, 2)
 })
 
@@ -102,14 +102,14 @@ test("should correctly balance the right right case", function(t) {
  *    / \         w   x y   z
  *   x   y
  */
-test("should correctly balance the right left case", function(t) {
+test("should correctly balance the right left case", async function(t) {
   let tree = new AvlTree<number, number>({
     store: store,
     root: undefined,
     compare: compare,
   })
-  tree = tree.insert(1, 1)
-  tree = tree.insert(3, 1)
-  tree = tree.insert(2, 1)
+  tree = await tree.insert(1, 1)
+  tree = await tree.insert(3, 1)
+  tree = await tree.insert(2, 1)
   t.is(tree.root?.key, 2)
 })

@@ -13,8 +13,8 @@
     "sourceMap": true,
     "experimentalDecorators": true,
     "jsx": "react",
-    "target": "es5",
-    "lib": ["es6", "es2017", "dom", "scripthost", "esnext.asynciterable"],
+    "target": "es2018",
+    "lib": ["es6", "es2017", "es2018"],
     "outDir": "build"
   },
   "include": ["src/**/*", "test/**/*"],
