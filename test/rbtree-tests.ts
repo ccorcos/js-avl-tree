@@ -29,6 +29,14 @@ function checkTree<K, V>(tree: AvlTree<K, V>, t: ExecutionContext<unknown>) {
     const left = tree.store.get(node.leftId)
     const right = tree.store.get(node.rightId)
 
+    if (node.leftId && !left) {
+      t.fail("left not found")
+    }
+
+    if (node.rightId && !right) {
+      t.fail("right not found")
+    }
+
     if (left) {
       t.assert(
         tree.compare(left.key, node.key) <= 0,
