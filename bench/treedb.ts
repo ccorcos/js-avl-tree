@@ -9,6 +9,7 @@ async function main() {
     "treedb",
     new TreeDb<string, string>({
       storage: new LevelDbAvlNodeStorage(new LevelDb("./chet.leveldb")),
+      // storage: new InMemoryAvlNodeStorage(new InMemoryKeyValueStore()),
       compare: compare,
     })
   )
