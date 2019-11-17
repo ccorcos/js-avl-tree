@@ -1,4 +1,4 @@
-import { TreeDb } from "../src/tree-db"
+import { TreeDb } from "../src/treedb"
 import { LevelDb, LevelDbAvlNodeStorage } from "../storage/leveldb"
 import { compare } from "../src/utils"
 import { benchmark } from "./benchmark"
