@@ -1,5 +1,6 @@
 import * as level from "level"
 import { AvlNode, AvlNodeStorage } from "../src/avl-tree"
+import { KeyValueStorage } from "../src/treedb"
 
 interface LevelUp {
   put(key: string, value: string): Promise<void>
@@ -74,5 +75,23 @@ export class LevelDbAvlNodeStorage<K, V> implements AvlNodeStorage<K, V> {
 
   async delete(id: string): Promise<void> {
     await this.db.del(id)
+  }
+}
+
+export class LevelDbKeyValueStorage implements KeyValueStorage {
+  constructor(private db: LevelDb) {}
+
+  async get(key: string): Promise<any> {
+    const result = await this.db.get(key)
+    if (result === undefined) {
+      return
+    }
+    return JSON.parse(result)
+  }
+  async set(key: string, value: any): Promise<void> {
+    await this.db.put(key, JSON.stringify(value))
+  }
+  async delete(key: string): Promise<void> {
+    await this.db.del(key)
   }
 }

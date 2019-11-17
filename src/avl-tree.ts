@@ -5,7 +5,7 @@ TODO
   - [x] run against leveldb
 - [x] benchmark
   - [ ] Node.js issue ticket about GC
-- [ ] treedb persist heads
+- [x] treedb persist heads
 - [ ] assemblyscript?
 
 */

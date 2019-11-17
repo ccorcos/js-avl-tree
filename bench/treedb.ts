@@ -1,5 +1,5 @@
 import { TreeDb } from "../src/treedb"
-import { LevelDb, LevelDbAvlNodeStorage } from "../storage/leveldb"
+import { LevelDb, LevelDbKeyValueStorage } from "../storage/leveldb"
 import { compare } from "../src/utils"
 import { benchmark } from "./benchmark"
 
@@ -8,8 +8,8 @@ async function main() {
   await benchmark(
     "treedb",
     new TreeDb<string, string>({
-      storage: new LevelDbAvlNodeStorage(new LevelDb("./chet.leveldb")),
-      // storage: new InMemoryAvlNodeStorage(new InMemoryKeyValueStore()),
+      name: "test" + Math.random().toString(),
+      store: new LevelDbKeyValueStorage(new LevelDb("./chet.leveldb")),
       compare: compare,
     })
   )

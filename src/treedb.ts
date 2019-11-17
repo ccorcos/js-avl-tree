@@ -1,14 +1,43 @@
-import { AvlTree, AvlNodeStorage } from "./avl-tree"
+import { AvlTree, AvlNode, AvlNodeStorage } from "./avl-tree"
 
-// TODO: need some kind of storage for the tree pointer.
+export interface KeyValueStorage {
+  get(key: string): Promise<any>
+  set(key: string, value: any): Promise<void>
+  delete(key: string): Promise<void>
+}
+
+function headKey(treeName: string) {
+  return "avltree-head:" + treeName
+}
+
 export class TreeDb<K, V> {
-  private storage: AvlNodeStorage<K, V>
+  private store: KeyValueStorage
+
+  private storage: AvlNodeStorage<K, V> = {
+    get: async (id: string | undefined): Promise<AvlNode<K, V> | undefined> => {
+      if (id === undefined) {
+        return
+      }
+      return this.store.get(id)
+    },
+    set: async (node: AvlNode<K, V>): Promise<void> => {
+      return this.store.set(node.id, node)
+    },
+    delete: async (id: string): Promise<void> => {
+      return this.store.delete(id)
+    },
+  }
+
   private compare: (a: K, b: K) => number
+
+  private name: string
   constructor(args: {
-    storage: AvlNodeStorage<K, V>
+    name: string
+    store: KeyValueStorage
     compare: (a: K, b: K) => number
   }) {
-    this.storage = args.storage
+    this.name = args.name
+    this.store = args.store
     this.compare = args.compare
   }
 
@@ -17,13 +46,12 @@ export class TreeDb<K, V> {
     if (this.tree) {
       return this.tree
     }
-
-    // Change the root key and you can have many trees!
-    // const nodeId = await this.db.get("root")
+    const nodeId: string = await this.store.get(headKey(this.name))
+    const root = await this.storage.get(nodeId)
     this.tree = new AvlTree<K, V>({
       store: this.storage,
       compare: this.compare,
-      root: undefined,
+      root: root,
     })
     return this.tree
   }
@@ -38,6 +66,8 @@ export class TreeDb<K, V> {
 
   async set(key: K, value: V): Promise<void> {
     const tree = await this.getTree()
-    this.tree = await tree.insert(key, value)
+    const newTree = await tree.insert(key, value)
+    await this.store.set(headKey(this.name), newTree.root?.id)
+    this.tree = newTree
   }
 }

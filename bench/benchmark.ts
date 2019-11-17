@@ -1,7 +1,7 @@
 import { performance } from "perf_hooks"
 import * as _ from "lodash"
 
-const iterations = 100_000
+const iterations = 10_000
 
 export interface BenchDb {
   get(key: string): Promise<string | undefined>
