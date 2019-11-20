@@ -58,3 +58,9 @@ node --max_old_space_size=2048 -r ts-node/register
 npm run build && node --inspect-brk build/bench/treedb.js
 npm run build && node --trace-gc build/bench/treedb.js
 ```
+
+https://gist.github.com/ccorcos/680c8a7f021df64ee7fbbce463e7c3c0
+
+```
+console.log(fs.readFileSync("./gc.txt", "utf8").split("\n").filter(line => line.includes("Mark-sweep")).map(line => require("lodash").compact(line.split(" "))).map(line => [line[1], line[4], line[4]].join("\t")).join("\n"))
+```
