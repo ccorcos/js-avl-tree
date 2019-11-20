@@ -142,19 +142,51 @@ async function* lookupContacts(email: string) {
       return
     }
     const contact = await contacts.get(id)
-    yield contact
+    yield contact!
+    await iter.next()
   }
 }
 
-test("should not change the size of a tree with no root", async function(t) {
+test("contacts example", async function(t) {
   await saveContact({
     id: "1",
     first: "chet",
     last: "corcos",
-    email: "ccorcos@gmail.com",
+    email: "chet@corcos.com",
+  })
+  await saveContact({
+    id: "2",
+    first: "simon",
+    last: "last",
+    email: "simon@last.com",
+  })
+  await saveContact({
+    id: "3",
+    first: "andrew",
+    last: "langdon",
+    email: "andrew@langdon.com",
+  })
+  await saveContact({
+    id: "4",
+    first: "meghan",
+    last: "navarro",
+    email: "chet@corcos.com",
   })
 
-  // saveContact
-  // listContacts
-  // lookupContacts
+  const lastFirstOrder: Array<Contact> = []
+  for await (const contact of listContacts()) {
+    lastFirstOrder.push(contact)
+  }
+  t.is(lastFirstOrder.length, 4)
+  t.deepEqual(
+    lastFirstOrder.map(c => c.last),
+    ["corcos", "langdon", "last", "navarro"]
+  )
+
+  const lookupResults: Array<Contact> = []
+  for await (const contact of lookupContacts("chet@corcos.com")) {
+    lookupResults.push(contact)
+  }
+
+  t.is(lookupResults.length, 2)
 })

@@ -24,8 +24,8 @@ Soming soon...
 
 - garbage collection issue.
   - gc-issue.md
-    - looks like it might be just the gets..
-- contacts example text
+  - https://github.com/nodejs/node/issues/30554
+- contacts example test
   - batch get/set
   - scan / cursoring
   - better abstractions for indexes.
