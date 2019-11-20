@@ -1,7 +1,7 @@
 import { performance } from "perf_hooks"
 import * as _ from "lodash"
 
-const iterations = 10_000
+const iterations = 100_000
 
 export interface BenchDb {
   get(key: string): Promise<string | undefined>
@@ -74,9 +74,10 @@ export async function benchmark(label: string, db: BenchDb) {
     sets.begin()
     await db.set(key, random())
     sets.end()
-    // This rest is necessary for Node.js GC to not die benching treedb.
-    if (i % 10000 === 0) {
-      await new Promise(resolve => setTimeout(resolve, 1000))
+    if (i % (iterations / 10) === 0) {
+      console.log(i)
+      // This rest is necessary for Node.js GC to not die benching treedb.
+      // await new Promise(resolve => setTimeout(resolve, 1000))
     }
   }
   sets.stop()
@@ -86,9 +87,10 @@ export async function benchmark(label: string, db: BenchDb) {
     gets.begin()
     await db.get(keys[i])
     gets.end()
-    // This rest is necessary for Node.js GC to not die benching treedb.
-    if (i % 10000 === 0) {
-      await new Promise(resolve => setTimeout(resolve, 1000))
+    if (i % (iterations / 10) === 0) {
+      console.log(i)
+      // This rest is necessary for Node.js GC to not die benching treedb.
+      // await new Promise(resolve => setTimeout(resolve, 1000))
     }
   }
   gets.stop()
