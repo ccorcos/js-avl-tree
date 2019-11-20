@@ -58,10 +58,7 @@ export class TreeDb<K, V> {
 
   async get(key: K): Promise<V | undefined> {
     const tree = await this.getTree()
-    const node = (await tree.find(key)).node
-    if (node) {
-      return node.value
-    }
+    return await tree.get(key)
   }
 
   async set(key: K, value: V): Promise<void> {

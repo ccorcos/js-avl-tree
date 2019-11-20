@@ -23,6 +23,8 @@ Soming soon...
 ## To Do
 
 - garbage collection issue.
+  - gc-issue.md
+    - looks like it might be just the gets..
 - contacts example text
   - batch get/set
   - scan / cursoring
