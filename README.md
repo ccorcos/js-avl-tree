@@ -22,9 +22,11 @@ Soming soon...
 
 ## To Do
 
-- contacts example
+- garbage collection issue.
+- contacts example text
   - batch get/set
   - scan / cursoring
   - better abstractions for indexes.
 - accept custom randomId generator.
-- garbage collection issue.
+- TodoMVC app
+  - Reactivity?
