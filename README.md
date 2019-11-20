@@ -1,139 +1,30 @@
-# js-avl-tree
+# TreeDb
 
-A JavaScript implementation of the [AVL tree](http://www.growingwiththeweb.com/data-structures/avl-tree/overview/) data structure.
+This library is a very simple database primitive.
 
-![](http://www.growingwiththeweb.com/images/data-structures/avl-tree/avl-tree.svg)
+## Description
 
-## Features
+**Warning: Jargon**
 
-- 100% test coverage
-- Supports all common tree operations
+TreeDb is an immutable AVL-tree with a custom comparison function built on top of any key-value store. Let's break that down:
 
-## Install
+- An [AVL-tree](https://en.wikipedia.org/wiki/AVL_tree) is a [balanced binary search tree](https://en.wikipedia.org/wiki/Self-balancing_binary_search_tree) algorithm with `O(log n)` inserts, updates, and deletions. Any database fundamentally operates on binary trees.
 
-```bash
-npm install --save @tyriar/avl-tree
-```
+- The AVL-tree is immutable, meaning that it is a [persistent data-structure](https://en.wikipedia.org/wiki/Persistent_data_structure). That means you the entire history of the database is preserved so can rewind the database. This is also a very nice property for dealing with [multi-version concurrency control](https://en.wikipedia.org/wiki/Multiversion_concurrency_control).
 
-## Usage
+- The AVL-tree orders values using a custom comparison function. This is really useful for creating [composite indexes](https://en.wikipedia.org/wiki/Composite_index_(database)).
 
-```javascript
-// Import npm module
-var AvlTree = require('@tyriar/avl-tree');
+- This AVL-tree is built on top of any key-value store and can be written to durable storage using, for example, LevelDb.
 
-// Construct AvlTree
-var tree = new AvlTree();
+## Example
 
-// Insert keys
-tree.insert(1);
-tree.insert(2);
-tree.insert(3);
-tree.insert(4);
-tree.insert(5);
-console.log('size: ' + tree.size());
-console.log('contains 2: ' + tree.contains(2));
-console.log('contains 7: ' + tree.contains(7));
-// > size: 5
-// > contains 2: true
-// > contains 7: false
+Soming soon...
 
-// Delete a key
-tree.delete(2);
-console.log('size: ' + tree.size());
-console.log('contains 2: ' + tree.contains(2));
-// > size: 4
-// > contains 2: false
+## To Do
 
-// Construct custom compare AvlTree
-tree = new AvlTree(function (a, b) {
-  return a.localeCompare(b);
-});
-tree.insert('a');
-tree.insert('A');
-tree.insert('b');
-tree.insert('B');
-
-// Delete the minimum key
-var minKey = tree.findMinimum();
-tree.delete(minKey);
-console.log('minKey: ' + minKey);
-console.log('new minKey: ' + tree.findMinimum());
-// > min key: 'a'
-// > new min key: 'A'
-```
-
-## Operation time complexity
-
-| Operation   | Complexity |
-| ----------- | ---------- |
-| contains    | O(log n)   |
-| delete      | O(log n)   |
-| findMaximum | O(log n)   |
-| findMinimum | O(log n)   |
-| get         | O(log n)   |
-| insert      | O(log n)   |
-| isEmpty     | Θ(1)       |
-| size        | Θ(1)       |
-
-## API
-
-### AvlTree
-
-Creates a new AVL Tree.
-
-**Parameters**
-
--   `customCompare` **function** An optional custom compare function.
-
-#### contains
-
-Gets whether a node with a specific key is within the tree.
-
-**Parameters**
-
--   `key` **Object** The key being searched for.
-
-Returns **boolean** Whether a node with the key exists.
-
-#### delete
-
-Deletes a node with a specific key from the tree.
-
-**Parameters**
-
--   `key` **Object** The key being deleted.
-
-#### findMaximum
-
-Returns **Object** The maximum key in the tree.
-
-#### findMinimum
-
-Returns **Object** The minimum key in the tree.
-
-#### get
-
-Gets the value of a node within the tree with a specific key.
-
-**Parameters**
-
--   `key` **Object** The key being searched for.
-
-Returns **Object** The value of the node or undefined if it doesn't exist.
-
-#### insert
-
-Inserts a new node with a specific key into the tree.
-
-**Parameters**
-
--   `key` **Object** The key being inserted.
--   `value` **Object** The value being inserted.
-
-#### isEmpty
-
-Returns **boolean** Whether the tree is empty.
-
-#### size
-
-Returns **number** The size of the tree.
+- contacts example
+  - batch get/set
+  - scan / cursoring
+  - better abstractions for indexes.
+- accept custom randomId generator.
+- garbage collection issue.

@@ -1,15 +1,3 @@
-/*
-
-TODO
-- [x] make it async
-  - [x] run against leveldb
-- [x] benchmark
-  - [ ] Node.js issue ticket about GC
-- [x] treedb persist heads
-- [ ] assemblyscript?
-
-*/
-
 import { randomId } from "./utils"
 
 export interface AvlNodeStorage<K, V> {

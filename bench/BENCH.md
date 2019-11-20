@@ -1,6 +1,5 @@
 # Benchmark Analysis
 
-
 We should expect treedb reads to be log2(n) slower than leveldb.
 
 > Math.log2(10_000)
@@ -51,6 +50,8 @@ Observations:
 	Node.js overhead is 10%.
 - set:.023 * 16.5 = 0.380
 	3-4x overhead on balancing.
+
+Notes about GC issues.
 
 ```
 node --max_old_space_size=2048 -r ts-node/register

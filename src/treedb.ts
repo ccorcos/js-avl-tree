@@ -70,4 +70,11 @@ export class TreeDb<K, V> {
     await this.store.set(headKey(this.name), newTree.root?.id)
     this.tree = newTree
   }
+
+  async remove(key: K): Promise<void> {
+    const tree = await this.getTree()
+    const newTree = await tree.remove(key)
+    await this.store.set(headKey(this.name), newTree.root?.id)
+    this.tree = newTree
+  }
 }
