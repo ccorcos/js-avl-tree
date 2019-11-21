@@ -625,5 +625,42 @@ test("randomness", async function(t) {
       ids.push(...(await u.nodes()).map(({ id }) => id))
     }
     checkStore(u, ids, t)
+    for (const n of _.sampleSize(numbers, 50)) {
+      const next = await u.remove(n)
+      await checkTree(u, t)
+      await checkTree(next, t) // Test immutability
+      u = next
+      ids.push(...(await u.nodes()).map(({ id }) => id))
+    }
+    checkStore(u, ids, t)
+  }
+})
+
+test("batch-randomness", async function(t) {
+  for (let i = 0; i < 100; i++) {
+    let u = makeTree<number, number>()
+    const ids: Array<string> = []
+    const numbers = _.shuffle(_.range(100))
+    let batch = u.batch()
+    for (const n of numbers) {
+      batch = batch.insert(n, n)
+    }
+    let next = await batch.commit()
+    await checkTree(u, t)
+    await checkTree(next, t)
+    u = next
+    ids.push(...(await u.nodes()).map(({ id }) => id))
+    checkStore(u, ids, t)
+
+    batch = u.batch()
+    for (const n of _.sampleSize(numbers, 50)) {
+      batch = batch.remove(n)
+    }
+    next = await batch.commit()
+    await checkTree(u, t)
+    await checkTree(next, t)
+    u = next
+    ids.push(...(await u.nodes()).map(({ id }) => id))
+    checkStore(u, ids, t)
   }
 })

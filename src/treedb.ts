@@ -23,9 +23,9 @@ export class TreeDb<K, V> {
     set: async (node: AvlNode<K, V>): Promise<void> => {
       return this.store.set(node.id, node)
     },
-    delete: async (id: string): Promise<void> => {
-      return this.store.delete(id)
-    },
+    // delete: async (id: string): Promise<void> => {
+    //   return this.store.delete(id)
+    // },
   }
 
   private compare: (a: K, b: K) => number

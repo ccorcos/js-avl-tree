@@ -3,7 +3,7 @@ import { randomId } from "./utils"
 export interface AvlNodeStorage<K, V> {
   get(id: string | undefined): Promise<AvlNode<K, V> | undefined>
   set(node: AvlNode<K, V>): Promise<void>
-  delete(id: string): Promise<void>
+  // delete(id: string): Promise<void>
 }
 
 export interface AvlNodeReadOnlyStorage<K, V> {
@@ -21,7 +21,7 @@ export interface AvlNode<K, V> {
 }
 
 export class Transaction<K, V> {
-  constructor(private store: AvlNodeStorage<K, V>) {}
+  constructor(public store: AvlNodeStorage<K, V>) {}
 
   private cache: Record<string, AvlNode<K, V> | undefined> = {}
   private writes: Record<string, AvlNode<K, V>> = {}
@@ -49,8 +49,15 @@ export class Transaction<K, V> {
     this.writes[id] = value
   }
 
-  cleanup(node: AvlNode<K, V>) {
+  clone(node: AvlNode<K, V>): AvlNode<K, V> {
+    // When cloning a node, remove it from the write so we don't create unnecessary
+    // amounts of data. The `checkStore` test cases make sure of this.
     delete this.writes[node.id]
+    const newNode = {
+      ...node,
+      id: randomId(),
+    }
+    return newNode
   }
 
   async commit() {
@@ -62,14 +69,6 @@ export class Transaction<K, V> {
     // Let the garbage collector clean up the cache.
     this.cache = {}
   }
-}
-
-function clone<K, V>(node: AvlNode<K, V>): AvlNode<K, V> {
-  const newNode = {
-    ...node,
-    id: randomId(),
-  }
-  return newNode
 }
 
 async function leftHeight<K, V>(args: {
@@ -143,10 +142,8 @@ async function rotateRight<K, V>(args: {
     throw Error("Cannot rotateRight without a left!")
   }
 
-  const a = clone(left)
-  transaction.cleanup(left)
-  const b = clone(root)
-  transaction.cleanup(root)
+  const a = transaction.clone(left)
+  const b = transaction.clone(root)
 
   b.leftId = a.rightId
   a.rightId = b.id
@@ -190,10 +187,8 @@ async function rotateLeft<K, V>(args: {
     throw Error("Cannot rotateRight without a right!")
   }
 
-  const b = clone(right)
-  transaction.cleanup(right)
-  const a = clone(root)
-  transaction.cleanup(root)
+  const b = transaction.clone(right)
+  const a = transaction.clone(root)
 
   a.rightId = b.leftId
   b.leftId = a.id
@@ -243,14 +238,17 @@ async function findPath<K, V>(args: {
   return stack
 }
 
-function clonePath<K, V>(path: Array<AvlNode<K, V>>) {
+function clonePath<K, V>(
+  transaction: Transaction<K, V>,
+  path: Array<AvlNode<K, V>>
+) {
   const newPath = [...path]
   // Clone the entire path.
-  newPath[0] = clone(newPath[0])
+  newPath[0] = transaction.clone(newPath[0])
   for (let i = 1; i < newPath.length; i++) {
     const prev = newPath[i - 1]
     const node = newPath[i]
-    const newNode = clone(newPath[i])
+    const newNode = transaction.clone(newPath[i])
     if (prev.leftId === node.id) {
       prev.leftId = newNode.id
     } else {
@@ -287,6 +285,7 @@ export async function insert<K, V>(args: {
 
   // Find the path to where we want to insert.
   const stack = clonePath(
+    transaction,
     await findPath({ store: transaction, compare, root, key })
   )
 
@@ -411,9 +410,12 @@ export async function remove<K, V>(args: {
     return
   }
 
+  // Find the path to where we want to insert.
   const stack = clonePath(
+    transaction,
     await findPath({ store: transaction, compare, root, key })
   )
+
   const last = stack.pop()!
   const prev = stack[stack.length - 1]
 
@@ -451,7 +453,7 @@ export async function remove<K, V>(args: {
         prev.rightId = right.id
       }
     } else {
-      const newRoot = clone(right)
+      const newRoot = transaction.clone(right)
       transaction.set(newRoot)
       stack.push(newRoot)
     }
@@ -464,7 +466,7 @@ export async function remove<K, V>(args: {
         prev.rightId = left.id
       }
     } else {
-      const newRoot = clone(left)
+      const newRoot = transaction.clone(left)
       transaction.set(newRoot)
       stack.push(newRoot)
     }
@@ -896,8 +898,73 @@ export class AvlTree<K, V> {
     })
   }
 
-  // TODO: batch
+  batch() {
+    const transaction = new Transaction(this.store)
+    return new AvlTreeBatch({
+      root: this.root,
+      compare: this.compare,
+      transaction,
+    })
+  }
+
   // TODO: scan
+}
+
+export class AvlTreeBatch<K, V> {
+  private root: AvlNode<K, V> | undefined
+  private compare: Compare<K>
+  private transaction: Transaction<K, V>
+  private tasks: Array<
+    (root: AvlNode<K, V> | undefined) => Promise<AvlNode<K, V> | undefined>
+  > = []
+
+  constructor(args: {
+    root: AvlNode<K, V> | undefined
+    compare: Compare<K>
+    transaction: Transaction<K, V>
+  }) {
+    this.root = args.root
+    this.compare = args.compare
+    this.transaction = args.transaction
+  }
+
+  insert(key: K, value: V) {
+    this.tasks.push(root =>
+      insert({
+        transaction: this.transaction,
+        compare: this.compare,
+        root: root,
+        key: key,
+        value: value,
+      })
+    )
+    return this
+  }
+
+  remove(key: K) {
+    this.tasks.push(root =>
+      remove({
+        transaction: this.transaction,
+        compare: this.compare,
+        root: root,
+        key: key,
+      })
+    )
+    return this
+  }
+
+  async commit() {
+    let root = this.root
+    for (const task of this.tasks) {
+      root = await task(root)
+    }
+    await this.transaction.commit()
+    return new AvlTree({
+      store: this.transaction.store,
+      compare: this.compare,
+      root: root,
+    })
+  }
 }
 
 /**
