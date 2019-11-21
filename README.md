@@ -23,8 +23,8 @@ Soming soon...
 ## To Do
 
 - garbage collection issue.
-  - gc-issue.md
   - https://github.com/nodejs/node/issues/30554
+  - https://bugs.chromium.org/p/v8/issues/detail?id=10003
 - contacts example test
   - batch get/set
   - scan / cursoring
