@@ -6,7 +6,7 @@ export interface AvlNodeStorage<K, V> {
   // delete(id: string): Promise<void>
 }
 
-interface AvlNodeReadOnlyStorage<K, V> {
+export interface AvlNodeReadOnlyStorage<K, V> {
   get(id: string | undefined): Promise<AvlNode<K, V> | undefined>
 }
 
@@ -20,7 +20,7 @@ export interface AvlNode<K, V> {
   count: number
 }
 
-class Transaction<K, V> {
+export class Transaction<K, V> {
   constructor(public store: AvlNodeStorage<K, V>) {}
 
   private cache: Record<string, AvlNode<K, V> | undefined> = {}
@@ -649,9 +649,9 @@ async function getBalanceState<K, V>(args: {
  * A convenient abstraction that isn't quite so functional.
  */
 export class AvlTree<K, V> {
-  readonly store: AvlNodeStorage<K, V>
-  readonly root: AvlNode<K, V> | undefined
-  readonly compare: Compare<K>
+  store: AvlNodeStorage<K, V>
+  root: AvlNode<K, V> | undefined
+  compare: Compare<K>
 
   constructor(args: {
     store: AvlNodeStorage<K, V>
@@ -661,6 +661,41 @@ export class AvlTree<K, V> {
     this.store = args.store
     this.root = args.root
     this.compare = args.compare
+  }
+
+  async insert(key: K, value: V) {
+    const transaction = new Transaction(this.store)
+    const newRoot = await insert({
+      transaction,
+      compare: this.compare,
+      root: this.root,
+      key: key,
+      value: value,
+    })
+    await transaction.commit()
+    // TODO: this should be persisted.
+    return new AvlTree({
+      store: this.store,
+      compare: this.compare,
+      root: newRoot,
+    })
+  }
+
+  async remove(key: K) {
+    const transaction = new Transaction(this.store)
+    const newRoot = await remove({
+      transaction,
+      compare: this.compare,
+      root: this.root,
+      key,
+    })
+    await transaction.commit()
+    // TODO: this should be persisted.
+    return new AvlTree({
+      store: this.store,
+      compare: this.compare,
+      root: newRoot,
+    })
   }
 
   async get(key: K): Promise<V | undefined> {
@@ -863,7 +898,7 @@ export class AvlTree<K, V> {
     })
   }
 
-  transact() {
+  batch() {
     const transaction = new Transaction(this.store)
     return new AvlTreeBatch({
       root: this.root,
@@ -1090,7 +1125,7 @@ export class AvlTreeIterator<K, V> {
 /**
  * A helper method for walking a a tree.
  */
-class AvlTreeWalker<K, V> {
+export class AvlTreeWalker<K, V> {
   store: AvlNodeStorage<K, V>
   node: Promise<AvlNode<K, V> | undefined>
 
