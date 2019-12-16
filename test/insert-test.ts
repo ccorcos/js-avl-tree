@@ -14,11 +14,26 @@ test("should return the size of the tree", async function(t) {
     root: undefined,
     compare: compare,
   })
-  tree = await tree.insert(1, 1)
-  tree = await tree.insert(2, 1)
-  tree = await tree.insert(3, 1)
-  tree = await tree.insert(4, 1)
-  tree = await tree.insert(5, 1)
+  tree = await tree
+    .transact()
+    .insert(1, 1)
+    .commit()
+  tree = await tree
+    .transact()
+    .insert(2, 1)
+    .commit()
+  tree = await tree
+    .transact()
+    .insert(3, 1)
+    .commit()
+  tree = await tree
+    .transact()
+    .insert(4, 1)
+    .commit()
+  tree = await tree
+    .transact()
+    .insert(5, 1)
+    .commit()
   t.is(tree.root?.count, 5)
 })
 
@@ -28,8 +43,14 @@ test("should ignore insert of duplicate key", async function(t) {
     root: undefined,
     compare: compare,
   })
-  tree = await tree.insert(1, 1)
-  tree = await tree.insert(1, 1)
+  tree = await tree
+    .transact()
+    .insert(1, 1)
+    .commit()
+  tree = await tree
+    .transact()
+    .insert(1, 1)
+    .commit()
   t.is(tree.root?.count, 1)
 })
 
@@ -48,9 +69,18 @@ test("should correctly balance the left left case", async function(t) {
     root: undefined,
     compare: compare,
   })
-  tree = await tree.insert(3, 1)
-  tree = await tree.insert(2, 1)
-  tree = await tree.insert(1, 1)
+  tree = await tree
+    .transact()
+    .insert(3, 1)
+    .commit()
+  tree = await tree
+    .transact()
+    .insert(2, 1)
+    .commit()
+  tree = await tree
+    .transact()
+    .insert(1, 1)
+    .commit()
   t.is(tree.root?.key, 2)
 })
 
@@ -69,9 +99,18 @@ test("should correctly balance the left right case", async function(t) {
     root: undefined,
     compare: compare,
   })
-  tree = await tree.insert(3, 1)
-  tree = await tree.insert(1, 1)
-  tree = await tree.insert(2, 1)
+  tree = await tree
+    .transact()
+    .insert(3, 1)
+    .commit()
+  tree = await tree
+    .transact()
+    .insert(1, 1)
+    .commit()
+  tree = await tree
+    .transact()
+    .insert(2, 1)
+    .commit()
   t.is(tree.root?.key, 2)
 })
 
@@ -90,9 +129,18 @@ test("should correctly balance the right right case", async function(t) {
     root: undefined,
     compare: compare,
   })
-  tree = await tree.insert(1, 1)
-  tree = await tree.insert(2, 1)
-  tree = await tree.insert(3, 1)
+  tree = await tree
+    .transact()
+    .insert(1, 1)
+    .commit()
+  tree = await tree
+    .transact()
+    .insert(2, 1)
+    .commit()
+  tree = await tree
+    .transact()
+    .insert(3, 1)
+    .commit()
   t.is(tree.root?.key, 2)
 })
 
@@ -111,8 +159,17 @@ test("should correctly balance the right left case", async function(t) {
     root: undefined,
     compare: compare,
   })
-  tree = await tree.insert(1, 1)
-  tree = await tree.insert(3, 1)
-  tree = await tree.insert(2, 1)
+  tree = await tree
+    .transact()
+    .insert(1, 1)
+    .commit()
+  tree = await tree
+    .transact()
+    .insert(3, 1)
+    .commit()
+  tree = await tree
+    .transact()
+    .insert(2, 1)
+    .commit()
   t.is(tree.root?.key, 2)
 })

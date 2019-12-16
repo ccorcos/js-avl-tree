@@ -14,10 +14,25 @@ test("should return the maximum key in the tree", async function(t) {
     root: undefined,
     compare: compare,
   })
-  tree = await tree.insert(3, undefined)
-  tree = await tree.insert(5, undefined)
-  tree = await tree.insert(1, undefined)
-  tree = await tree.insert(4, undefined)
-  tree = await tree.insert(2, undefined)
+  tree = await tree
+    .transact()
+    .insert(3, undefined)
+    .commit()
+  tree = await tree
+    .transact()
+    .insert(5, undefined)
+    .commit()
+  tree = await tree
+    .transact()
+    .insert(1, undefined)
+    .commit()
+  tree = await tree
+    .transact()
+    .insert(4, undefined)
+    .commit()
+  tree = await tree
+    .transact()
+    .insert(2, undefined)
+    .commit()
   t.is((await tree.end()).node?.key, 5)
 })

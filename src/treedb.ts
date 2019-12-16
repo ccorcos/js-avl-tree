@@ -63,14 +63,20 @@ export class TreeDb<K, V> {
 
   async set(key: K, value: V): Promise<void> {
     const tree = await this.getTree()
-    const newTree = await tree.insert(key, value)
+    const newTree = await tree
+      .transact()
+      .insert(key, value)
+      .commit()
     await this.store.set(headKey(this.name), newTree.root?.id)
     this.tree = newTree
   }
 
   async remove(key: K): Promise<void> {
     const tree = await this.getTree()
-    const newTree = await tree.remove(key)
+    const newTree = await tree
+      .transact()
+      .remove(key)
+      .commit()
     await this.store.set(headKey(this.name), newTree.root?.id)
     this.tree = newTree
   }

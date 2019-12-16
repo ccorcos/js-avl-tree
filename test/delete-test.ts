@@ -14,7 +14,10 @@ test("should not change the size of a tree with no root", async function(t) {
     root: undefined,
     compare: compare,
   })
-  tree = await tree.remove(1)
+  tree = await tree
+    .transact()
+    .remove(1)
+    .commit()
   t.is(tree.root, undefined)
 })
 
@@ -24,8 +27,14 @@ test("should delete a single key", async function(t) {
     root: undefined,
     compare: compare,
   })
-  tree = await tree.insert(1, 1)
-  tree = await tree.remove(1)
+  tree = await tree
+    .transact()
+    .insert(1, 1)
+    .commit()
+  tree = await tree
+    .transact()
+    .remove(1)
+    .commit()
   t.is(tree.root, undefined)
 })
 
@@ -42,16 +51,46 @@ test("should correctly balance the left left case", async function(t) {
     root: undefined,
     compare: compare,
   })
-  tree = await tree.insert(4, 4)
-  tree = await tree.insert(2, 2)
-  tree = await tree.insert(6, 6)
-  tree = await tree.insert(3, 3)
-  tree = await tree.insert(5, 5)
-  tree = await tree.insert(1, 1)
-  tree = await tree.insert(7, 7)
-  tree = await tree.remove(7)
-  tree = await tree.remove(5)
-  tree = await tree.remove(6)
+  tree = await tree
+    .transact()
+    .insert(4, 4)
+    .commit()
+  tree = await tree
+    .transact()
+    .insert(2, 2)
+    .commit()
+  tree = await tree
+    .transact()
+    .insert(6, 6)
+    .commit()
+  tree = await tree
+    .transact()
+    .insert(3, 3)
+    .commit()
+  tree = await tree
+    .transact()
+    .insert(5, 5)
+    .commit()
+  tree = await tree
+    .transact()
+    .insert(1, 1)
+    .commit()
+  tree = await tree
+    .transact()
+    .insert(7, 7)
+    .commit()
+  tree = await tree
+    .transact()
+    .remove(7)
+    .commit()
+  tree = await tree
+    .transact()
+    .remove(5)
+    .commit()
+  tree = await tree
+    .transact()
+    .remove(6)
+    .commit()
   t.is(tree.root?.key, 2)
   t.is(tree.root?.value, 2)
   t.is((await tree.walk().left.node)?.key, 1)
@@ -75,16 +114,46 @@ test("should correctly balance the right right case", async function(t) {
     root: undefined,
     compare: compare,
   })
-  tree = await tree.insert(4, 4)
-  tree = await tree.insert(2, 2)
-  tree = await tree.insert(6, 6)
-  tree = await tree.insert(3, 3)
-  tree = await tree.insert(5, 5)
-  tree = await tree.insert(1, 1)
-  tree = await tree.insert(7, 7)
-  tree = await tree.remove(1)
-  tree = await tree.remove(3)
-  tree = await tree.remove(2)
+  tree = await tree
+    .transact()
+    .insert(4, 4)
+    .commit()
+  tree = await tree
+    .transact()
+    .insert(2, 2)
+    .commit()
+  tree = await tree
+    .transact()
+    .insert(6, 6)
+    .commit()
+  tree = await tree
+    .transact()
+    .insert(3, 3)
+    .commit()
+  tree = await tree
+    .transact()
+    .insert(5, 5)
+    .commit()
+  tree = await tree
+    .transact()
+    .insert(1, 1)
+    .commit()
+  tree = await tree
+    .transact()
+    .insert(7, 7)
+    .commit()
+  tree = await tree
+    .transact()
+    .remove(1)
+    .commit()
+  tree = await tree
+    .transact()
+    .remove(3)
+    .commit()
+  tree = await tree
+    .transact()
+    .remove(2)
+    .commit()
   t.is(tree.root?.key, 6)
   t.is(tree.root?.value, 6)
   t.is((await tree.walk().left.node)?.key, 4)
@@ -110,15 +179,42 @@ test("should correctly balance the left right case", async function(t) {
     root: undefined,
     compare: compare,
   })
-  tree = await tree.insert(6, 6)
-  tree = await tree.insert(2, 2)
-  tree = await tree.insert(7, 7)
-  tree = await tree.insert(1, 1)
-  tree = await tree.insert(8, 8)
-  tree = await tree.insert(4, 4)
-  tree = await tree.insert(3, 3)
-  tree = await tree.insert(5, 5)
-  tree = await tree.remove(8)
+  tree = await tree
+    .transact()
+    .insert(6, 6)
+    .commit()
+  tree = await tree
+    .transact()
+    .insert(2, 2)
+    .commit()
+  tree = await tree
+    .transact()
+    .insert(7, 7)
+    .commit()
+  tree = await tree
+    .transact()
+    .insert(1, 1)
+    .commit()
+  tree = await tree
+    .transact()
+    .insert(8, 8)
+    .commit()
+  tree = await tree
+    .transact()
+    .insert(4, 4)
+    .commit()
+  tree = await tree
+    .transact()
+    .insert(3, 3)
+    .commit()
+  tree = await tree
+    .transact()
+    .insert(5, 5)
+    .commit()
+  tree = await tree
+    .transact()
+    .remove(8)
+    .commit()
   t.is(tree.root?.key, 4)
   t.is(tree.root?.value, 4)
   t.is((await tree.walk().left.node)?.key, 2)
@@ -150,15 +246,42 @@ test("should correctly balance the right left case", async function(t) {
     root: undefined,
     compare: compare,
   })
-  tree = await tree.insert(3, 3)
-  tree = await tree.insert(2, 2)
-  tree = await tree.insert(7, 7)
-  tree = await tree.insert(1, 1)
-  tree = await tree.insert(8, 8)
-  tree = await tree.insert(5, 5)
-  tree = await tree.insert(4, 4)
-  tree = await tree.insert(6, 6)
-  tree = await tree.remove(1)
+  tree = await tree
+    .transact()
+    .insert(3, 3)
+    .commit()
+  tree = await tree
+    .transact()
+    .insert(2, 2)
+    .commit()
+  tree = await tree
+    .transact()
+    .insert(7, 7)
+    .commit()
+  tree = await tree
+    .transact()
+    .insert(1, 1)
+    .commit()
+  tree = await tree
+    .transact()
+    .insert(8, 8)
+    .commit()
+  tree = await tree
+    .transact()
+    .insert(5, 5)
+    .commit()
+  tree = await tree
+    .transact()
+    .insert(4, 4)
+    .commit()
+  tree = await tree
+    .transact()
+    .insert(6, 6)
+    .commit()
+  tree = await tree
+    .transact()
+    .remove(1)
+    .commit()
   t.is(tree.root?.key, 5)
   t.is(tree.root?.value, 5)
   t.is((await tree.walk().left.node)?.key, 3)
@@ -181,9 +304,18 @@ test("should take the right child if the left does not exist", async function(t)
     root: undefined,
     compare: compare,
   })
-  tree = await tree.insert(1, 1)
-  tree = await tree.insert(2, 2)
-  tree = await tree.remove(1)
+  tree = await tree
+    .transact()
+    .insert(1, 1)
+    .commit()
+  tree = await tree
+    .transact()
+    .insert(2, 2)
+    .commit()
+  tree = await tree
+    .transact()
+    .remove(1)
+    .commit()
   t.is(tree.root?.key, 2)
   t.is(tree.root?.value, 2)
 })
@@ -194,9 +326,18 @@ test("should take the left child if the right does not exist", async function(t)
     root: undefined,
     compare: compare,
   })
-  tree = await tree.insert(2, 2)
-  tree = await tree.insert(1, 1)
-  tree = await tree.remove(2)
+  tree = await tree
+    .transact()
+    .insert(2, 2)
+    .commit()
+  tree = await tree
+    .transact()
+    .insert(1, 1)
+    .commit()
+  tree = await tree
+    .transact()
+    .remove(2)
+    .commit()
   t.is(tree.root?.key, 1)
   t.is(tree.root?.value, 1)
 })
@@ -207,10 +348,22 @@ test("should get the right child if the node has 2 leaf children", async functio
     root: undefined,
     compare: compare,
   })
-  tree = await tree.insert(2, 2)
-  tree = await tree.insert(1, 1)
-  tree = await tree.insert(3, 3)
-  tree = await tree.remove(2)
+  tree = await tree
+    .transact()
+    .insert(2, 2)
+    .commit()
+  tree = await tree
+    .transact()
+    .insert(1, 1)
+    .commit()
+  tree = await tree
+    .transact()
+    .insert(3, 3)
+    .commit()
+  tree = await tree
+    .transact()
+    .remove(2)
+    .commit()
   t.is(tree.root?.key, 3)
   t.is(tree.root?.value, 3)
 })
@@ -221,12 +374,30 @@ test("should get the in-order successor if the node has both children", async fu
     root: undefined,
     compare: compare,
   })
-  tree = await tree.insert(2, 2)
-  tree = await tree.insert(1, 1)
-  tree = await tree.insert(4, 4)
-  tree = await tree.insert(3, 3)
-  tree = await tree.insert(5, 5)
-  tree = await tree.remove(2)
+  tree = await tree
+    .transact()
+    .insert(2, 2)
+    .commit()
+  tree = await tree
+    .transact()
+    .insert(1, 1)
+    .commit()
+  tree = await tree
+    .transact()
+    .insert(4, 4)
+    .commit()
+  tree = await tree
+    .transact()
+    .insert(3, 3)
+    .commit()
+  tree = await tree
+    .transact()
+    .insert(5, 5)
+    .commit()
+  tree = await tree
+    .transact()
+    .remove(2)
+    .commit()
   t.is(tree.root?.key, 3)
   t.is(tree.root?.value, 3)
 })

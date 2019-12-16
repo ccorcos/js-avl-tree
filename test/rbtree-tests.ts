@@ -96,7 +96,10 @@ test("insert()", async function(t) {
   var arr: Array<number> = []
   for (var i = 20; i >= 0; --i) {
     var x = i
-    var next = await u.insert(x, true)
+    var next = await u
+      .transact()
+      .insert(x, true)
+      .commit()
     await checkTree(u, t)
     await checkTree(next, t)
     t.is(u.root?.count || 0, arr.length)
@@ -109,7 +112,10 @@ test("insert()", async function(t) {
 
   for (var i = -20; i < 0; ++i) {
     var x = i
-    var next = await u.insert(x, true)
+    var next = await u
+      .transact()
+      .insert(x, true)
+      .commit()
     await checkTree(u, t)
     await checkTree(next, t)
     arr.sort(function(a, b) {
@@ -147,7 +153,10 @@ test("insert()", async function(t) {
 
 test("foreach", async function(t) {
   var u = await iota(31).reduce(async function(u, k, v) {
-    return (await u).insert(k, v)
+    return (await u)
+      .transact()
+      .insert(k, v)
+      .commit()
   }, Promise.resolve(makeTree<number, number>()))
 
   //Check basic foreach
@@ -179,7 +188,10 @@ async function compareIterators<K, V>(
 
 test("iterators", async function(t) {
   var u = await iota(20).reduce(async function(u, k, v) {
-    return (await u).insert(k, v)
+    return (await u)
+      .transact()
+      .insert(k, v)
+      .commit()
   }, Promise.resolve(makeTree<number, number>()))
 
   //Try walking forward
@@ -216,10 +228,19 @@ test("remove()", async function(t) {
   for (var n = 0; n < sz.length; ++n) {
     var c = sz[n]
     var u = await iota(c).reduce(async function(u, k, v) {
-      return (await u).insert(k, v)
+      return (await u)
+        .transact()
+        .insert(k, v)
+        .commit()
     }, Promise.resolve(makeTree<number, number>()))
     for (var i = 0; i < c; ++i) {
-      await checkTree(await u.remove(i), t)
+      await checkTree(
+        await u
+          .transact()
+          .remove(i)
+          .commit(),
+        t
+      )
     }
   }
 })
@@ -237,7 +258,10 @@ test("keys and values", async function(t) {
 
   var u = makeTree<string, any>()
   for (var i = 0; i < original_keys.length; ++i) {
-    u = await u.insert(original_keys[i], original_values[i])
+    u = await u
+      .transact()
+      .insert(original_keys[i], original_values[i])
+      .commit()
   }
 
   var zipped = iota(6).map(function(i) {
@@ -274,7 +298,10 @@ test("keys and values", async function(t) {
 test("searching", async function(t) {
   var arr = [0, 1, 1, 1, 1, 2, 3, 4, 5, 6, 6]
   var u = await arr.reduce(async function(u, k, v) {
-    return (await u).insert(k, v)
+    return (await u)
+      .transact()
+      .insert(k, v)
+      .commit()
   }, Promise.resolve(makeTree<number, number>()))
 
   for (var i = 0; i < arr.length; ++i) {
@@ -340,70 +367,100 @@ test("searching", async function(t) {
 test("slab-sequence", async function(t) {
   var tree = makeTree<number, number>()
 
-  tree = await tree.insert(0, 0)
+  tree = await tree
+    .transact()
+    .insert(0, 0)
+    .commit()
   await checkTree(tree, t)
   t.deepEqual(
     (await tree.nodes()).map(n => n.value),
     [0]
   )
 
-  tree = await tree.insert(1, 1)
+  tree = await tree
+    .transact()
+    .insert(1, 1)
+    .commit()
   await checkTree(tree, t)
   t.deepEqual(
     (await tree.nodes()).map(n => n.value),
     [0, 1]
   )
 
-  tree = await tree.insert(0.5, 2)
+  tree = await tree
+    .transact()
+    .insert(0.5, 2)
+    .commit()
   await checkTree(tree, t)
   t.deepEqual(
     (await tree.nodes()).map(n => n.value),
     [0, 2, 1]
   )
 
-  tree = await tree.insert(0.25, 3)
+  tree = await tree
+    .transact()
+    .insert(0.25, 3)
+    .commit()
   await checkTree(tree, t)
   t.deepEqual(
     (await tree.nodes()).map(n => n.value),
     [0, 3, 2, 1]
   )
 
-  tree = await tree.remove(0)
+  tree = await tree
+    .transact()
+    .remove(0)
+    .commit()
   await checkTree(tree, t)
   t.deepEqual(
     (await tree.nodes()).map(n => n.value),
     [3, 2, 1]
   )
 
-  tree = await tree.insert(0.375, 4)
+  tree = await tree
+    .transact()
+    .insert(0.375, 4)
+    .commit()
   await checkTree(tree, t)
   t.deepEqual(
     (await tree.nodes()).map(n => n.value),
     [3, 4, 2, 1]
   )
 
-  tree = await tree.remove(1)
+  tree = await tree
+    .transact()
+    .remove(1)
+    .commit()
   await checkTree(tree, t)
   t.deepEqual(
     (await tree.nodes()).map(n => n.value),
     [3, 4, 2]
   )
 
-  tree = await tree.remove(0.5)
+  tree = await tree
+    .transact()
+    .remove(0.5)
+    .commit()
   await checkTree(tree, t)
   t.deepEqual(
     (await tree.nodes()).map(n => n.value),
     [3, 4]
   )
 
-  tree = await tree.remove(0.375)
+  tree = await tree
+    .transact()
+    .remove(0.375)
+    .commit()
   await checkTree(tree, t)
   t.deepEqual(
     (await tree.nodes()).map(n => n.value),
     [3]
   )
 
-  tree = await tree.remove(0.25)
+  tree = await tree
+    .transact()
+    .remove(0.25)
+    .commit()
   await checkTree(tree, t)
   t.deepEqual(
     (await tree.nodes()).map(n => n.value),
@@ -415,196 +472,388 @@ test("slab-sequence-2", async function(t) {
   var u = makeTree<number, number>()
 
   const ids: Array<string> = []
-  u = await u.insert(12, 22)
+  u = await u
+    .transact()
+    .insert(12, 22)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
-  u = await u.insert(11, 3)
+  u = await u
+    .transact()
+    .insert(11, 3)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
-  u = await u.insert(10, 28)
+  u = await u
+    .transact()
+    .insert(10, 28)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
-  u = await u.insert(13, 16)
+  u = await u
+    .transact()
+    .insert(13, 16)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
-  u = await u.insert(9, 9)
+  u = await u
+    .transact()
+    .insert(9, 9)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
-  u = await u.insert(14, 10)
+  u = await u
+    .transact()
+    .insert(14, 10)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
-  u = await u.insert(8, 15)
+  u = await u
+    .transact()
+    .insert(8, 15)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
-  u = await u.insert(15, 29)
+  u = await u
+    .transact()
+    .insert(15, 29)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
-  u = await u.insert(16, 4)
+  u = await u
+    .transact()
+    .insert(16, 4)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
-  u = await u.insert(7, 21)
+  u = await u
+    .transact()
+    .insert(7, 21)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
-  u = await u.insert(17, 23)
+  u = await u
+    .transact()
+    .insert(17, 23)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
-  u = await u.insert(6, 2)
+  u = await u
+    .transact()
+    .insert(6, 2)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
-  u = await u.insert(5, 27)
+  u = await u
+    .transact()
+    .insert(5, 27)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
-  u = await u.insert(18, 17)
+  u = await u
+    .transact()
+    .insert(18, 17)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
-  u = await u.insert(4, 8)
+  u = await u
+    .transact()
+    .insert(4, 8)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
-  u = await u.insert(31, 11)
+  u = await u
+    .transact()
+    .insert(31, 11)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
-  u = await u.insert(30, 30)
+  u = await u
+    .transact()
+    .insert(30, 30)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
-  u = await u.insert(29, 5)
+  u = await u
+    .transact()
+    .insert(29, 5)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
-  u = await u.insert(28, 24)
+  u = await u
+    .transact()
+    .insert(28, 24)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
-  u = await u.insert(27, 18)
+  u = await u
+    .transact()
+    .insert(27, 18)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
-  u = await u.insert(26, 12)
+  u = await u
+    .transact()
+    .insert(26, 12)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
-  u = await u.insert(25, 31)
+  u = await u
+    .transact()
+    .insert(25, 31)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
-  u = await u.insert(24, 6)
+  u = await u
+    .transact()
+    .insert(24, 6)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
-  u = await u.insert(23, 25)
+  u = await u
+    .transact()
+    .insert(23, 25)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
-  u = await u.insert(19, 7)
+  u = await u
+    .transact()
+    .insert(19, 7)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
-  u = await u.insert(20, 13)
+  u = await u
+    .transact()
+    .insert(20, 13)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
-  u = await u.insert(1, 20)
+  u = await u
+    .transact()
+    .insert(1, 20)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
-  u = await u.insert(0, 14)
+  u = await u
+    .transact()
+    .insert(0, 14)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
-  u = await u.insert(22, 0)
+  u = await u
+    .transact()
+    .insert(22, 0)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
-  u = await u.insert(2, 1)
+  u = await u
+    .transact()
+    .insert(2, 1)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
-  u = await u.insert(3, 26)
+  u = await u
+    .transact()
+    .insert(3, 26)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
-  u = await u.insert(21, 19)
+  u = await u
+    .transact()
+    .insert(21, 19)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
-  u = await u.remove(18)
+  u = await u
+    .transact()
+    .remove(18)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
-  u = await u.remove(17)
+  u = await u
+    .transact()
+    .remove(17)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
-  u = await u.remove(16)
+  u = await u
+    .transact()
+    .remove(16)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
-  u = await u.remove(15)
+  u = await u
+    .transact()
+    .remove(15)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
-  u = await u.remove(14)
+  u = await u
+    .transact()
+    .remove(14)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
-  u = await u.remove(13)
+  u = await u
+    .transact()
+    .remove(13)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
-  u = await u.remove(12)
+  u = await u
+    .transact()
+    .remove(12)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
-  u = await u.remove(6)
+  u = await u
+    .transact()
+    .remove(6)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
-  u = await u.remove(7)
+  u = await u
+    .transact()
+    .remove(7)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
-  u = await u.remove(8)
+  u = await u
+    .transact()
+    .remove(8)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
-  u = await u.remove(11)
+  u = await u
+    .transact()
+    .remove(11)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
-  u = await u.remove(4)
+  u = await u
+    .transact()
+    .remove(4)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
-  u = await u.remove(9)
+  u = await u
+    .transact()
+    .remove(9)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
-  u = await u.remove(10)
+  u = await u
+    .transact()
+    .remove(10)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
-  u = await u.remove(5)
+  u = await u
+    .transact()
+    .remove(5)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
-  u = await u.remove(31)
+  u = await u
+    .transact()
+    .remove(31)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
-  u = await u.remove(0)
+  u = await u
+    .transact()
+    .remove(0)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
-  u = await u.remove(30)
+  u = await u
+    .transact()
+    .remove(30)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
-  u = await u.remove(29)
+  u = await u
+    .transact()
+    .remove(29)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
-  u = await u.remove(1)
+  u = await u
+    .transact()
+    .remove(1)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
-  u = await u.remove(28)
+  u = await u
+    .transact()
+    .remove(28)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
-  u = await u.remove(2)
+  u = await u
+    .transact()
+    .remove(2)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
-  u = await u.remove(3)
+  u = await u
+    .transact()
+    .remove(3)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
-  u = await u.remove(27)
+  u = await u
+    .transact()
+    .remove(27)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
-  u = await u.remove(19)
+  u = await u
+    .transact()
+    .remove(19)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
-  u = await u.remove(26)
+  u = await u
+    .transact()
+    .remove(26)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
-  u = await u.remove(20)
+  u = await u
+    .transact()
+    .remove(20)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
-  u = await u.remove(25)
+  u = await u
+    .transact()
+    .remove(25)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
-  u = await u.remove(24)
+  u = await u
+    .transact()
+    .remove(24)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
-  u = await u.remove(21)
+  u = await u
+    .transact()
+    .remove(21)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
-  u = await u.remove(23)
+  u = await u
+    .transact()
+    .remove(23)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
-  u = await u.remove(22)
+  u = await u
+    .transact()
+    .remove(22)
+    .commit()
   await checkTree(u, t)
   ids.push(...(await u.nodes()).map(({ id }) => id))
   checkStore(u, ids, t)
@@ -618,7 +867,10 @@ test("randomness", async function(t) {
     const ids: Array<string> = []
     const numbers = _.shuffle(_.range(100))
     for (const n of numbers) {
-      const next = await u.insert(n, n)
+      const next = await u
+        .transact()
+        .insert(n, n)
+        .commit()
       await checkTree(u, t)
       await checkTree(next, t) // Test immutability
       u = next
@@ -626,7 +878,10 @@ test("randomness", async function(t) {
     }
     checkStore(u, ids, t)
     for (const n of _.sampleSize(numbers, 50)) {
-      const next = await u.remove(n)
+      const next = await u
+        .transact()
+        .remove(n)
+        .commit()
       await checkTree(u, t)
       await checkTree(next, t) // Test immutability
       u = next
@@ -636,12 +891,12 @@ test("randomness", async function(t) {
   }
 })
 
-test("batch-randomness", async function(t) {
+test("transaction-randomness", async function(t) {
   for (let i = 0; i < 100; i++) {
     let u = makeTree<number, number>()
     const ids: Array<string> = []
     const numbers = _.shuffle(_.range(100))
-    let batch = u.batch()
+    let batch = u.transact()
     for (const n of numbers) {
       batch = batch.insert(n, n)
     }
@@ -652,7 +907,7 @@ test("batch-randomness", async function(t) {
     ids.push(...(await u.nodes()).map(({ id }) => id))
     checkStore(u, ids, t)
 
-    batch = u.batch()
+    batch = u.transact()
     for (const n of _.sampleSize(numbers, 50)) {
       batch = batch.remove(n)
     }

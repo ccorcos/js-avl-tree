@@ -15,8 +15,14 @@ test("should return whether the tree is empty", async function(t) {
     compare: compare,
   })
   t.is(tree.root, undefined)
-  tree = await tree.insert(1, 1)
+  tree = await tree
+    .transact()
+    .insert(1, 1)
+    .commit()
   t.assert(tree.root)
-  tree = await tree.remove(1)
+  tree = await tree
+    .transact()
+    .remove(1)
+    .commit()
   t.is(tree.root, undefined)
 })
