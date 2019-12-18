@@ -1,5 +1,5 @@
-import { AvlNode, AvlNodeReadableStorage } from "./storage"
-import { Compare, findPath } from "./avl"
+import { AvlNode, AvlNodeReadableStorage } from "./avl-storage"
+import { Compare, findPath } from "./avl-tree"
 
 /**
  * Represents a path into an `AvlTreeIterator` with helpful methods for

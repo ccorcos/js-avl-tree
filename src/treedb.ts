@@ -1,4 +1,5 @@
-import { AvlTree, AvlNode, AvlNodeStorage } from "./avl-tree"
+import { AvlNode, AvlNodeWritableStorage } from "./avl-storage"
+import { AvlTree } from "./avl-test-helpers"
 
 export interface KeyValueStorage {
   get(key: string): Promise<any>
@@ -13,7 +14,7 @@ function headKey(treeName: string) {
 export class TreeDb<K, V> {
   private store: KeyValueStorage
 
-  private storage: AvlNodeStorage<K, V> = {
+  private storage: AvlNodeWritableStorage<K, V> = {
     get: async (id: string | undefined): Promise<AvlNode<K, V> | undefined> => {
       if (id === undefined) {
         return

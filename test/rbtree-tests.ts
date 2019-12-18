@@ -1,7 +1,9 @@
 // These tests were adopted from `functional-red-black-tree` which are pretty exhaustive.
 import * as _ from "lodash"
 import test, { ExecutionContext } from "ava"
-import { AvlTree, AvlNode, AvlTreeIterator } from "../src/avl-tree"
+import { AvlTree } from "../src/avl-test-helpers"
+import { AvlNode } from "../src/avl-storage"
+import { AvlTreeIterator } from "../src/avl-iterator"
 import { compare } from "../src/utils"
 import {
   InMemoryKeyValueStore,
@@ -166,7 +168,7 @@ async function compareIterators<K, V>(
   b: AvlTreeIterator<K, V>,
   t: ExecutionContext<unknown>
 ) {
-  t.is(a.tree, b.tree, "iter trees")
+  t.is(a.root, b.root, "iter trees")
   t.is(a.valid, b.valid, "iter validity")
   if (!b.valid) {
     return

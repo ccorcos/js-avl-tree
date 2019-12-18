@@ -1,5 +1,5 @@
 import * as level from "level"
-import { AvlNode, AvlNodeStorage } from "../src/avl-tree"
+import { AvlNode, AvlNodeWritableStorage } from "../src/avl-storage"
 import { KeyValueStorage } from "../src/treedb"
 
 interface LevelUp {
@@ -55,7 +55,8 @@ export class LevelDb {
   }
 }
 
-export class LevelDbAvlNodeStorage<K, V> implements AvlNodeStorage<K, V> {
+export class LevelDbAvlNodeWritableStorage<K, V>
+  implements AvlNodeWritableStorage<K, V> {
   constructor(private db: LevelDb) {}
 
   async get(id: string | undefined): Promise<AvlNode<K, V> | undefined> {

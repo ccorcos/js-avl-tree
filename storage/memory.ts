@@ -1,4 +1,4 @@
-import { AvlNode, AvlNodeStorage } from "../src/avl-tree"
+import { AvlNode, AvlNodeWritableStorage } from "../src/avl-storage"
 
 export class InMemoryKeyValueStore {
   private map: Record<string, string> = {}
@@ -13,7 +13,8 @@ export class InMemoryKeyValueStore {
   }
 }
 
-export class InMemoryAvlNodeStorage<K, V> implements AvlNodeStorage<K, V> {
+export class InMemoryAvlNodeStorage<K, V>
+  implements AvlNodeWritableStorage<K, V> {
   constructor(private store: InMemoryKeyValueStore) {}
   async get(id: string | undefined) {
     if (!id) {

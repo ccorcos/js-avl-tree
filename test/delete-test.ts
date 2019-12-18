@@ -1,5 +1,5 @@
 import test from "ava"
-import { AvlTree } from "../src/avl-tree"
+import { AvlTree } from "../src/avl-test-helpers"
 import { compare } from "../src/utils"
 import {
   InMemoryKeyValueStore,
