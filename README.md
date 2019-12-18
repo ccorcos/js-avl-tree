@@ -24,6 +24,10 @@ Soming soon...
 
 - batched set/get across multiple trees.
   - see contacts-example test.
+  - [ ] rewrite contacts-example using primitives instead of AVLTree.
+    - [ ] treedb should be called avl-index and have some functions for writing the head.
+          then, treedb is just a collection of indexes?
+  - [ ] think about what's the best abstraction for this?
 
 - methodology for cleaning up history if we want
   - this is useful for MVCC without too much storage requirements.
