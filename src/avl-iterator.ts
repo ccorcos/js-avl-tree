@@ -1,261 +1,17 @@
-/**
- * A convenient abstraction that isn't quite so functional.
- */
-export class AvlTree<K, V> {
-  store: AvlNodeWritableStorage<K, V>
-  root: AvlNode<K, V> | undefined
-  compare: Compare<K>
-
-  constructor(args: {
-    store: AvlNodeWritableStorage<K, V>
-    root: AvlNode<K, V> | undefined
-    compare: Compare<K>
-  }) {
-    this.store = args.store
-    this.root = args.root
-    this.compare = args.compare
-  }
-
-  async find(key: K): Promise<AvlTreeIterator<K, V>> {
-    if (!this.root) {
-      return new AvlTreeIterator({
-        root: this.root,
-        store: this.store,
-        stack: [],
-      })
-    }
-    const stack = await findPath({
-      store: this.store,
-      compare: this.compare,
-      root: this.root,
-      key,
-    })
-    const last = stack[stack.length - 1]
-    if (this.compare(key, last.key) === 0) {
-      return new AvlTreeIterator({
-        root: this.root,
-        store: this.store,
-        stack,
-      })
-    } else {
-      return new AvlTreeIterator({
-        root: this.root,
-        store: this.store,
-        stack: [],
-      })
-    }
-  }
-
-  async begin(): Promise<AvlTreeIterator<K, V>> {
-    let node = this.root
-    const stack: Array<AvlNode<K, V>> = []
-    while (node) {
-      stack.push(node)
-      node = await this.store.get(node.leftId)
-    }
-    return new AvlTreeIterator({
-      root: this.root,
-      store: this.store,
-      stack,
-    })
-  }
-
-  async end(): Promise<AvlTreeIterator<K, V>> {
-    let node = this.root
-    const stack: Array<AvlNode<K, V>> = []
-    while (node) {
-      stack.push(node)
-      node = await this.store.get(node.rightId)
-    }
-    return new AvlTreeIterator({
-      root: this.root,
-      store: this.store,
-      stack,
-    })
-  }
-
-  /**
-   * Find the nth item in the tree.
-   */
-  async at(idx: number): Promise<AvlTreeIterator<K, V>> {
-    const root = this.root
-    if (idx < 0 || !root) {
-      return new AvlTreeIterator({
-        root: this.root,
-        store: this.store,
-        stack: [],
-      })
-    }
-    let node = root
-    const stack: Array<AvlNode<K, V>> = []
-    while (true) {
-      stack.push(node)
-      const left = await this.store.get(node.leftId)
-      if (left) {
-        if (idx < left.count) {
-          node = left
-          continue
-        }
-        idx -= left.count
-      }
-      if (!idx) {
-        return new AvlTreeIterator({
-          root: this.root,
-          store: this.store,
-          stack: stack,
-        })
-      }
-      idx -= 1
-      const right = await this.store.get(node.rightId)
-      if (right) {
-        if (idx >= right.count) {
-          break
-        }
-        node = right
-      } else {
-        break
-      }
-    }
-    return new AvlTreeIterator({
-      root: this.root,
-      store: this.store,
-      stack: [],
-    })
-  }
-
-  async ge(key: K): Promise<AvlTreeIterator<K, V>> {
-    let node = this.root
-    const stack: Array<AvlNode<K, V>> = []
-    let last_ptr = 0
-    while (node) {
-      let direction = this.compare(key, node.key)
-      stack.push(node)
-      if (direction <= 0) {
-        last_ptr = stack.length
-      }
-      if (direction <= 0) {
-        node = await this.store.get(node.leftId)
-      } else {
-        node = await this.store.get(node.rightId)
-      }
-    }
-    // TODO: this feels sketchy
-    stack.length = last_ptr
-    return new AvlTreeIterator({
-      root: this.root,
-      store: this.store,
-      stack,
-    })
-  }
-
-  async gt(key: K): Promise<AvlTreeIterator<K, V>> {
-    let node = this.root
-    const stack: Array<AvlNode<K, V>> = []
-    let last_ptr = 0
-    while (node) {
-      let direction = this.compare(key, node.key)
-      stack.push(node)
-      if (direction < 0) {
-        last_ptr = stack.length
-      }
-      if (direction < 0) {
-        node = await this.store.get(node.leftId)
-      } else {
-        node = await this.store.get(node.rightId)
-      }
-    }
-    // TODO: this feels sketchy
-    stack.length = last_ptr
-    return new AvlTreeIterator({
-      root: this.root,
-      store: this.store,
-      stack,
-    })
-  }
-
-  async lt(key: K): Promise<AvlTreeIterator<K, V>> {
-    let node = this.root
-    const stack: Array<AvlNode<K, V>> = []
-    let last_ptr = 0
-    while (node) {
-      let direction = this.compare(key, node.key)
-      stack.push(node)
-      if (direction > 0) {
-        last_ptr = stack.length
-      }
-      if (direction <= 0) {
-        node = await this.store.get(node.leftId)
-      } else {
-        node = await this.store.get(node.rightId)
-      }
-    }
-    // TODO: this feels sketchy
-    stack.length = last_ptr
-    return new AvlTreeIterator({
-      root: this.root,
-      store: this.store,
-      stack,
-    })
-  }
-
-  async le(key: K): Promise<AvlTreeIterator<K, V>> {
-    let node = this.root
-    const stack: Array<AvlNode<K, V>> = []
-    let last_ptr = 0
-    while (node) {
-      let direction = this.compare(key, node.key)
-      stack.push(node)
-      if (direction >= 0) {
-        last_ptr = stack.length
-      }
-      if (direction < 0) {
-        node = await this.store.get(node.leftId)
-      } else {
-        node = await this.store.get(node.rightId)
-      }
-    }
-    // TODO: this feels sketchy
-    stack.length = last_ptr
-    return new AvlTreeIterator({
-      root: this.root,
-      store: this.store,
-      stack,
-    })
-  }
-
-  // This allows you to do forEach
-  // async *[Symbol.iterator]() {
-  //   let iter = await this.begin()
-  //   while (iter.valid) {
-  //     yield iter.node!
-  //     await iter.next()
-  //   }
-  // }
-
-  async nodes() {
-    const items: Array<AvlNode<K, V>> = []
-    let iter = await this.begin()
-    while (iter.valid) {
-      items.push(iter.node!)
-      await iter.next()
-    }
-    return items
-  }
-
-  // TODO: scan
-}
+import { AvlNode, AvlNodeReadableStorage } from "./storage"
+import { Compare, findPath } from "./avl"
 
 /**
  * Represents a path into an `AvlTreeIterator` with helpful methods for
  * traversing the tree.
  */
 export class AvlTreeIterator<K, V> {
-  store: AvlNodeWritableStorage<K, V>
+  store: AvlNodeReadableStorage<K, V>
   root: AvlNode<K, V> | undefined
   stack: Array<AvlNode<K, V>>
 
   constructor(args: {
-    store: AvlNodeWritableStorage<K, V>
+    store: AvlNodeReadableStorage<K, V>
     root: AvlNode<K, V> | undefined
     stack: Array<AvlNode<K, V>>
   }) {
@@ -405,4 +161,217 @@ export class AvlTreeIterator<K, V> {
   get valid() {
     return this.stack.length !== 0
   }
+}
+
+export async function find<K, V>(args: {
+  store: AvlNodeReadableStorage<K, V>
+  root: AvlNode<K, V> | undefined
+  compare: Compare<K>
+  key: K
+}): Promise<AvlTreeIterator<K, V>> {
+  const { store, root, compare, key } = args
+  if (!root) {
+    return new AvlTreeIterator({ root, store, stack: [] })
+  }
+  const stack = await findPath({ store, compare, root, key })
+  const last = stack[stack.length - 1]
+  if (compare(key, last.key) === 0) {
+    return new AvlTreeIterator({ root, store, stack })
+  } else {
+    return new AvlTreeIterator({ root, store, stack: [] })
+  }
+}
+
+export async function begin<K, V>(args: {
+  store: AvlNodeReadableStorage<K, V>
+  root: AvlNode<K, V> | undefined
+}): Promise<AvlTreeIterator<K, V>> {
+  const { store, root } = args
+  let node = root
+  const stack: Array<AvlNode<K, V>> = []
+  while (node) {
+    stack.push(node)
+    node = await store.get(node.leftId)
+  }
+  return new AvlTreeIterator({ root, store, stack })
+}
+
+export async function end<K, V>(args: {
+  store: AvlNodeReadableStorage<K, V>
+  root: AvlNode<K, V> | undefined
+}): Promise<AvlTreeIterator<K, V>> {
+  const { store, root } = args
+  let node = root
+  const stack: Array<AvlNode<K, V>> = []
+  while (node) {
+    stack.push(node)
+    node = await store.get(node.rightId)
+  }
+  return new AvlTreeIterator({ root, store, stack })
+}
+
+/**
+ * Find the nth item in the tree.
+ */
+export async function at<K, V>(args: {
+  store: AvlNodeReadableStorage<K, V>
+  root: AvlNode<K, V> | undefined
+  idx: number
+}): Promise<AvlTreeIterator<K, V>> {
+  const { store, root } = args
+  let idx = args.idx
+  if (idx < 0 || !root) {
+    return new AvlTreeIterator({ root, store, stack: [] })
+  }
+  let node = root
+  const stack: Array<AvlNode<K, V>> = []
+  while (true) {
+    stack.push(node)
+    const left = await store.get(node.leftId)
+    if (left) {
+      if (idx < left.count) {
+        node = left
+        continue
+      }
+      idx -= left.count
+    }
+    if (!idx) {
+      return new AvlTreeIterator({ root, store, stack })
+    }
+    idx -= 1
+    const right = await store.get(node.rightId)
+    if (right) {
+      if (idx >= right.count) {
+        break
+      }
+      node = right
+    } else {
+      break
+    }
+  }
+  return new AvlTreeIterator({ root, store, stack: [] })
+}
+
+export async function ge<K, V>(args: {
+  store: AvlNodeReadableStorage<K, V>
+  root: AvlNode<K, V> | undefined
+  compare: Compare<K>
+  key: K
+}): Promise<AvlTreeIterator<K, V>> {
+  const { store, root, compare, key } = args
+  let node = root
+  const stack: Array<AvlNode<K, V>> = []
+  let last_ptr = 0
+  while (node) {
+    let direction = compare(key, node.key)
+    stack.push(node)
+    if (direction <= 0) {
+      last_ptr = stack.length
+    }
+    if (direction <= 0) {
+      node = await store.get(node.leftId)
+    } else {
+      node = await store.get(node.rightId)
+    }
+  }
+  // TODO: this feels sketchy
+  stack.length = last_ptr
+  return new AvlTreeIterator({ root, store, stack })
+}
+
+export async function gt<K, V>(args: {
+  store: AvlNodeReadableStorage<K, V>
+  root: AvlNode<K, V> | undefined
+  compare: Compare<K>
+  key: K
+}): Promise<AvlTreeIterator<K, V>> {
+  const { store, root, compare, key } = args
+  let node = root
+  const stack: Array<AvlNode<K, V>> = []
+  let last_ptr = 0
+  while (node) {
+    let direction = compare(key, node.key)
+    stack.push(node)
+    if (direction < 0) {
+      last_ptr = stack.length
+    }
+    if (direction < 0) {
+      node = await store.get(node.leftId)
+    } else {
+      node = await store.get(node.rightId)
+    }
+  }
+  // TODO: this feels sketchy
+  stack.length = last_ptr
+  return new AvlTreeIterator({ root, store, stack })
+}
+
+export async function lt<K, V>(args: {
+  store: AvlNodeReadableStorage<K, V>
+  root: AvlNode<K, V> | undefined
+  compare: Compare<K>
+  key: K
+}): Promise<AvlTreeIterator<K, V>> {
+  const { store, root, compare, key } = args
+  let node = root
+  const stack: Array<AvlNode<K, V>> = []
+  let last_ptr = 0
+  while (node) {
+    let direction = compare(key, node.key)
+    stack.push(node)
+    if (direction > 0) {
+      last_ptr = stack.length
+    }
+    if (direction <= 0) {
+      node = await store.get(node.leftId)
+    } else {
+      node = await store.get(node.rightId)
+    }
+  }
+  // TODO: this feels sketchy
+  stack.length = last_ptr
+  return new AvlTreeIterator({ root, store, stack })
+}
+
+export async function le<K, V>(args: {
+  store: AvlNodeReadableStorage<K, V>
+  root: AvlNode<K, V> | undefined
+  compare: Compare<K>
+  key: K
+}): Promise<AvlTreeIterator<K, V>> {
+  const { store, root, compare, key } = args
+  let node = root
+  const stack: Array<AvlNode<K, V>> = []
+  let last_ptr = 0
+  while (node) {
+    let direction = compare(key, node.key)
+    stack.push(node)
+    if (direction >= 0) {
+      last_ptr = stack.length
+    }
+    if (direction < 0) {
+      node = await store.get(node.leftId)
+    } else {
+      node = await store.get(node.rightId)
+    }
+  }
+  // TODO: this feels sketchy
+  stack.length = last_ptr
+  return new AvlTreeIterator({ root, store, stack })
+}
+
+/**
+ * This is really only useful for testing.
+ */
+export async function getAllNodes<K, V>(args: {
+  store: AvlNodeReadableStorage<K, V>
+  root: AvlNode<K, V> | undefined
+}) {
+  const items: Array<AvlNode<K, V>> = []
+  let iter = await begin(args)
+  while (iter.valid) {
+    items.push(iter.node!)
+    await iter.next()
+  }
+  return items
 }

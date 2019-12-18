@@ -1,7 +1,7 @@
 import { randomId } from "./utils"
 import { AvlNode, AvlNodeReadableStorage, AvlNodeTransaction } from "./storage"
 
-type Compare<K> = (a: K, b: K) => number
+export type Compare<K> = (a: K, b: K) => number
 
 async function leftHeight<K, V>(args: {
   transaction: AvlNodeTransaction<K, V>
@@ -566,7 +566,7 @@ async function rebalanceRemove<K, V>(args: {
 /**
  * Gets the minimum node, rooted in a particular node.
  */
-export async function minNode<K, V>(args: {
+async function minNode<K, V>(args: {
   store: AvlNodeReadableStorage<K, V>
   root: AvlNode<K, V>
 }) {
@@ -575,22 +575,6 @@ export async function minNode<K, V>(args: {
   let left: AvlNode<K, V> | undefined
   while ((left = await store.get(current.leftId))) {
     current = left
-  }
-  return current
-}
-
-/**
- * Gets the maximum node, rooted in a particular node.
- */
-export async function maxNode<K, V>(args: {
-  store: AvlNodeReadableStorage<K, V>
-  root: AvlNode<K, V>
-}) {
-  const { store, root } = args
-  let current = root
-  let right: AvlNode<K, V> | undefined
-  while ((right = await store.get(current.rightId))) {
-    current = right
   }
   return current
 }
