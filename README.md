@@ -22,7 +22,11 @@ Soming soon...
 
 ## To Do
 
+
+
 - avl transaction should use an underyling storage transaction.
+- the transaction layer should be on key-value-storage, not on AVL storage.
+
 - index storage + transaction abstractions
 - contacts app test example
 - client reactivity + TodoMVC

@@ -95,7 +95,7 @@ export type ScanArgs = {
 }
 
 interface IndexReadableStorage<K extends Tuple, V> {
-  get(index: Index<K, V>, key: K): Promise<V>
+  get(index: Index<K, V>, key: K): Promise<V | undefined>
   scan(index: Index<K, V>, args: ScanArgs): Promise<Array<[K, V]>>
 }
 
@@ -108,10 +108,21 @@ interface IndexWritableStorage<K extends Tuple, V>
 // We want to use AVL in memory at the very least. Could persist to files
 // differently
 
-class AvlIndexStorage<K extends Tuple, V> {
-  constructor(private store: AvlNodeWritableStorage<K, V>) {}
-}
+// class AvlIndexStorage<K extends Tuple, V>
+//   implements IndexWritableStorage<K, V> {
 
+//   constructor(private store: AvlNodeWritableStorage<K, V>) {}
+//   async get(index: Index<K, V>, key: K): Promise<V | undefined> {
+
+//   }
+//   scan(index: Index<K, V>, args: ScanArgs): Promise<Array<[K, V]>>
+//   set(index: Index<K, V>, key: K, value: V): Promise<void>
+//   remove(index: Index<K, V>, key: K): Promise<void>
+// }
+
+// File storage cannot incrementally write so it has to load the whole thing
+// into memory regardless. In that case, it makes sense to just use an in-memory
+// AVL tree under the hood.
 class FileIndexStorage<K extends Tuple, V> {}
 
 // insert(index, transaction, k, v)
