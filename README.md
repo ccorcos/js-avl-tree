@@ -22,6 +22,11 @@ Soming soon...
 
 ## To Do
 
+- avl transaction should use an underyling storage transaction.
+- index storage + transaction abstractions
+- contacts app test example
+- client reactivity + TodoMVC
+
 - batched set/get across multiple trees.
   - see contacts-example test.
   - [ ] rewrite contacts-example using primitives instead of AVLTree.

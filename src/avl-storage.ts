@@ -18,8 +18,8 @@ export interface AvlNodeReadableStorage<K, V> {
   get(id: string | undefined): Promise<AvlNode<K, V> | undefined>
 }
 
-export interface AvlNodeWritableStorage<K, V> {
-  get(id: string | undefined): Promise<AvlNode<K, V> | undefined>
+export interface AvlNodeWritableStorage<K, V>
+  extends AvlNodeReadableStorage<K, V> {
   set(node: AvlNode<K, V>): Promise<void>
   // delete(id: string): Promise<void>
 }
