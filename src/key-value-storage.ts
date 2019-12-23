@@ -45,6 +45,13 @@ export class KeyValueTransaction<K, V> {
     this.sets.set(key, value)
   }
 
+  // Don't remove the key, but undo the set if there was one.
+  unset(key: K) {
+    if (this.sets.has(key)) {
+      this.sets.delete(key)
+    }
+  }
+
   remove(key: K) {
     if (this.sets.has(key)) {
       this.sets.delete(key)
