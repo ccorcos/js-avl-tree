@@ -1,4 +1,5 @@
 import { randomId } from "./utils"
+import { KeyValueWritableStorage } from "./key-value-storage"
 
 export interface AvlNode<K, V> {
   // Node ids.
@@ -22,6 +23,21 @@ export interface AvlNodeWritableStorage<K, V>
   extends AvlNodeReadableStorage<K, V> {
   set(node: AvlNode<K, V>): Promise<void>
   // delete(id: string): Promise<void>
+}
+
+export class AvlNodeStorage<K, V> implements AvlNodeWritableStorage<K, V> {
+  constructor(private store: KeyValueWritableStorage<string, AvlNode<K, V>>) {}
+
+  async get(id: string | undefined): Promise<AvlNode<K, V> | undefined> {
+    if (id === undefined) {
+      return
+    }
+    return this.store.get(id)
+  }
+
+  async set(node: AvlNode<K, V>): Promise<void> {
+    // TODO: batch.
+  }
 }
 
 export class AvlNodeTransaction<K, V> {
