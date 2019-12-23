@@ -3,6 +3,8 @@ import {
   AvlNodeTransaction,
   AvlNodeWritableStorage,
 } from "./avl-storage"
+import { KeyValueWritableStorage } from "./key-value-storage"
+import * as avl from "./avl-tree"
 
 // TODO: encodings
 // export type BooleanValue = { t: "boolean"; v: boolean }
@@ -101,9 +103,36 @@ interface IndexReadableStorage<K extends Tuple, V> {
 
 interface IndexWritableStorage<K extends Tuple, V>
   extends IndexReadableStorage<K, V> {
+  // TODO: batch.
   set(index: Index<K, V>, key: K, value: V): Promise<void>
   remove(index: Index<K, V>, key: K): Promise<void>
 }
+
+class IndexStorage<K extends Tuple, V> {
+  constructor(private store: KeyValueWritableStorage<any, any>) {}
+
+  async get(index: Index<K, V>, key: K): Promise<V | undefined> {
+    // Prefixed k-v store.
+    const rootId = await this.store.get(["head", index.name])
+    // Prefixed k-v store.
+    const root: AvlNode<K, V> | undefined =
+      rootId && (await this.store.get([index.name, rootId]))
+
+    return avl.get({
+      store: this.store, // TODO: new AvlNodeStorage
+      compare: compareQueryTuple(index.sort),
+      root: root,
+      key: key,
+    })
+  }
+
+  scan(index: Index<K, V>, args: ScanArgs): Promise<Array<[K, V]>> {
+    // TODO
+    return {} as any
+  }
+}
+
+// Head storage? This is all built on top of key-value storage.
 
 // We want to use AVL in memory at the very least. Could persist to files
 // differently

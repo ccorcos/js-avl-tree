@@ -22,7 +22,7 @@ Soming soon...
 
 ## To Do
 
-
+- use key-value storage as the basis for everything.
 
 - avl transaction should use an underyling storage transaction.
 - the transaction layer should be on key-value-storage, not on AVL storage.
