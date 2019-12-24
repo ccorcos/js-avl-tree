@@ -54,7 +54,7 @@ export class AvlNodeTransaction<K, V> implements AvlNodeReadableStorage<K, V> {
   constructor(public store: AvlNodeWritableStorage<K, V>) {}
 
   private cache: Record<string, AvlNode<K, V> | undefined> = {}
-  private writes: Record<string, AvlNode<K, V>> = {}
+  public writes: Record<string, AvlNode<K, V>> = {}
 
   // Transactions have a caching layer to improve performance and also
   // return data that is queued to be written.
@@ -88,13 +88,5 @@ export class AvlNodeTransaction<K, V> implements AvlNodeReadableStorage<K, V> {
       id: randomId(),
     }
     return newNode
-  }
-
-  async commit() {
-    await this.store.batch({ writes: this.writes })
-    // Writable nodes can no longer be accessed after the transaction is written.
-    this.writes = {}
-    // Let the garbage collector clean up the cache.
-    this.cache = {}
   }
 }

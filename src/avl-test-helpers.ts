@@ -51,7 +51,7 @@ export class AvlTree<K, V> {
       key: key,
       value: value,
     })
-    await transaction.commit()
+    await this.store.batch(transaction)
     return new AvlTree({
       store: this.store,
       compare: this.compare,
@@ -67,7 +67,7 @@ export class AvlTree<K, V> {
       root: this.root,
       key,
     })
-    await transaction.commit()
+    await this.store.batch(transaction)
     return new AvlTree({
       store: this.store,
       compare: this.compare,
@@ -159,11 +159,10 @@ export class AvlTree<K, V> {
   }
 
   batch() {
-    const transaction = new AvlNodeTransaction(this.store)
     return new AvlTreeBatch({
       root: this.root,
       compare: this.compare,
-      transaction,
+      store: this.store,
     })
   }
 }
@@ -174,6 +173,7 @@ export class AvlTree<K, V> {
 export class AvlTreeBatch<K, V> {
   private root: AvlNode<K, V> | undefined
   private compare: Compare<K>
+  private store: AvlNodeWritableStorage<K, V>
   private transaction: AvlNodeTransaction<K, V>
   private tasks: Array<
     (root: AvlNode<K, V> | undefined) => Promise<AvlNode<K, V> | undefined>
@@ -182,11 +182,12 @@ export class AvlTreeBatch<K, V> {
   constructor(args: {
     root: AvlNode<K, V> | undefined
     compare: Compare<K>
-    transaction: AvlNodeTransaction<K, V>
+    store: AvlNodeWritableStorage<K, V>
   }) {
     this.root = args.root
     this.compare = args.compare
-    this.transaction = args.transaction
+    this.store = args.store
+    this.transaction = new AvlNodeTransaction(args.store)
   }
 
   insert(key: K, value: V) {
@@ -219,7 +220,7 @@ export class AvlTreeBatch<K, V> {
     for (const task of this.tasks) {
       root = await task(root)
     }
-    await this.transaction.commit()
+    await this.store.batch(this.transaction)
     return new AvlTree({
       store: this.transaction.store,
       compare: this.compare,
