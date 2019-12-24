@@ -1,16 +1,15 @@
 import * as level from "level"
-import { AvlNode, AvlNodeWritableStorage } from "../src/avl-storage"
-import { KeyValueStorage } from "../src/treedb"
+import { KeyValueWritableStorage } from "../src/key-value-storage"
+
+type LevelBatchOp =
+  | { type: "del"; key: string }
+  | { type: "put"; key: string; value: string }
 
 interface LevelUp {
   put(key: string, value: string): Promise<void>
   get(key: string): Promise<string>
   del(key: string): Promise<void>
-  batch(
-    ops: Array<
-      { type: "del"; key: string } | { type: "put"; key: string; value: string }
-    >
-  ): Promise<void>
+  batch(ops: Array<LevelBatchOp>): Promise<void>
 }
 
 /**
@@ -53,46 +52,38 @@ export class LevelDb {
       }
     }
   }
-}
 
-export class LevelDbAvlNodeWritableStorage<K, V>
-  implements AvlNodeWritableStorage<K, V> {
-  constructor(private db: LevelDb) {}
-
-  async get(id: string | undefined): Promise<AvlNode<K, V> | undefined> {
-    if (!id) {
-      return
-    }
-    const result = await this.db.get(id)
-    if (result === undefined) {
-      return
-    }
-    return JSON.parse(result)
-  }
-
-  async set(node: AvlNode<K, V>): Promise<void> {
-    await this.db.put(node.id, JSON.stringify(node))
-  }
-
-  async delete(id: string): Promise<void> {
-    await this.db.del(id)
+  async batch(ops: Array<LevelBatchOp>): Promise<void> {
+    await this.db.batch(ops)
   }
 }
 
-export class LevelDbKeyValueStorage implements KeyValueStorage {
+export class LevelDbKeyValueStorage<T> implements KeyValueWritableStorage<T> {
   constructor(private db: LevelDb) {}
 
-  async get(key: string): Promise<any> {
+  async get(key: string): Promise<T | undefined> {
     const result = await this.db.get(key)
     if (result === undefined) {
       return
     }
     return JSON.parse(result)
   }
-  async set(key: string, value: any): Promise<void> {
-    await this.db.put(key, JSON.stringify(value))
-  }
-  async delete(key: string): Promise<void> {
-    await this.db.del(key)
+
+  async batch(args: {
+    set?: Record<string, T>
+    remove?: Set<string>
+  }): Promise<void> {
+    await this.db.batch([
+      ...(args.set
+        ? Object.entries(args.set).map(([key, value]) => ({
+            type: "put" as const,
+            key,
+            value: JSON.stringify(value),
+          }))
+        : []),
+      ...(args.remove
+        ? Array.from(args.remove).map(key => ({ type: "del" as const, key }))
+        : []),
+    ])
   }
 }

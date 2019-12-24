@@ -16,17 +16,23 @@ export interface AvlNode<K, V> {
 }
 
 export interface AvlNodeReadableStorage<K, V> {
+  // Some type issues with key-value storage.
+  // https://github.com/microsoft/TypeScript/issues/35843
+  type: "avl-node-storage"
   get(id: string | undefined): Promise<AvlNode<K, V> | undefined>
 }
 
 export interface AvlNodeWritableStorage<K, V>
   extends AvlNodeReadableStorage<K, V> {
-  set(node: AvlNode<K, V>): Promise<void>
-  // delete(id: string): Promise<void>
+  batch(args: {
+    set?: Record<string, AvlNode<K, V>>
+    remove?: Set<string>
+  }): Promise<void>
 }
 
 export class AvlNodeStorage<K, V> implements AvlNodeWritableStorage<K, V> {
-  constructor(private store: KeyValueWritableStorage<string, AvlNode<K, V>>) {}
+  type = "avl-node-storage" as const
+  constructor(private store: KeyValueWritableStorage<AvlNode<K, V>>) {}
 
   async get(id: string | undefined): Promise<AvlNode<K, V> | undefined> {
     if (id === undefined) {
@@ -35,12 +41,17 @@ export class AvlNodeStorage<K, V> implements AvlNodeWritableStorage<K, V> {
     return this.store.get(id)
   }
 
-  async set(node: AvlNode<K, V>): Promise<void> {
-    // TODO: batch.
+  async batch(args: {
+    set?: Record<string, AvlNode<K, V>>
+    remove?: Set<string>
+  }): Promise<void> {
+    this.store.batch(args)
   }
 }
 
-export class AvlNodeTransaction<K, V> {
+export class AvlNodeTransaction<K, V> implements AvlNodeReadableStorage<K, V> {
+  type = "avl-node-storage" as const
+
   constructor(public store: AvlNodeWritableStorage<K, V>) {}
 
   private cache: Record<string, AvlNode<K, V> | undefined> = {}
@@ -81,9 +92,7 @@ export class AvlNodeTransaction<K, V> {
   }
 
   async commit() {
-    for (const node of Object.values(this.writes)) {
-      await this.store.set(node)
-    }
+    await this.store.batch({ set: this.writes })
     // Writable nodes can no longer be accessed after the transaction is written.
     this.writes = {}
     // Let the garbage collector clean up the cache.

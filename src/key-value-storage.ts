@@ -1,63 +1,62 @@
-export interface KeyValueReadableStorage<K, V> {
-  get(key: K): Promise<V | undefined>
+export interface KeyValueReadableStorage<V> {
+  get(key: string): Promise<V | undefined>
 }
 
-export interface KeyValueWritableStorage<K, V>
-  extends KeyValueReadableStorage<K, V> {
-  batch(args: { set?: Map<K, V>; remove?: Set<K> }): Promise<void>
+export interface KeyValueWritableStorage<V> extends KeyValueReadableStorage<V> {
+  batch(args: { set?: Record<string, V>; remove?: Set<string> }): Promise<void>
 }
 
-export class KeyValueTransaction<K, V> {
-  constructor(public store: KeyValueWritableStorage<K, V>) {}
+export class KeyValueTransaction<V> {
+  constructor(public store: KeyValueWritableStorage<V>) {}
 
   // Cache to improve performance during a transaction.
-  private cache: Map<K, V | undefined> = new Map()
-  private sets: Map<K, V> = new Map()
-  private removes: Set<K> = new Set()
+  private cache: Record<string, V | undefined> = {}
+  private sets: Record<string, V> = {}
+  private removes: Set<string> = new Set()
 
-  async get(key: K): Promise<V | undefined> {
+  async get(key: string): Promise<V | undefined> {
     if (!key) {
       return
     }
-    if (this.sets.has(key)) {
-      return this.sets.get(key)
+    if (key in this.sets) {
+      return this.sets[key]
     }
     if (this.removes.has(key)) {
       return undefined
     }
-    if (this.cache.has(key)) {
-      return this.cache.get(key)
+    if (key in this.cache) {
+      return this.cache[key]
     }
     const value = await this.store.get(key)
     if (value !== undefined) {
-      this.cache.set(key, value)
+      this.cache[key] = value
     }
     return value
   }
 
-  set(key: K, value: V) {
+  set(key: string, value: V) {
     if (this.removes.has(key)) {
       this.removes.delete(key)
     }
-    if (this.cache.has(key)) {
-      this.cache.delete(key)
+    if (key in this.cache) {
+      delete this.cache[key]
     }
-    this.sets.set(key, value)
+    this.sets[key] = value
   }
 
   // Don't remove the key, but undo the set if there was one.
-  unset(key: K) {
-    if (this.sets.has(key)) {
-      this.sets.delete(key)
+  unset(key: string) {
+    if (key in this.sets) {
+      delete this.sets[key]
     }
   }
 
-  remove(key: K) {
-    if (this.sets.has(key)) {
-      this.sets.delete(key)
+  remove(key: string) {
+    if (key in this.sets) {
+      delete this.sets[key]
     }
-    if (this.cache.has(key)) {
-      this.cache.delete(key)
+    if (key in this.cache) {
+      delete this.cache[key]
     }
     this.removes.add(key)
   }
@@ -67,8 +66,8 @@ export class KeyValueTransaction<K, V> {
       set: this.sets,
       remove: this.removes,
     })
-    this.sets.clear()
+    this.sets = {}
+    this.cache = {}
     this.removes.clear()
-    this.cache.clear()
   }
 }

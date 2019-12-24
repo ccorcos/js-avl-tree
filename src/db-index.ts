@@ -2,6 +2,7 @@ import {
   AvlNode,
   AvlNodeTransaction,
   AvlNodeWritableStorage,
+  AvlNodeStorage,
 } from "./avl-storage"
 import { KeyValueWritableStorage } from "./key-value-storage"
 import * as avl from "./avl-tree"
@@ -96,72 +97,61 @@ export type ScanArgs = {
   limit?: number
 }
 
-interface IndexReadableStorage<K extends Tuple, V> {
-  get(index: Index<K, V>, key: K): Promise<V | undefined>
-  scan(index: Index<K, V>, args: ScanArgs): Promise<Array<[K, V]>>
+interface IndexReadableStorage {
+  get<K extends Tuple, V>(index: Index<K, V>, key: K): Promise<V | undefined>
+  scan<K extends Tuple, V>(
+    index: Index<K, V>,
+    args: ScanArgs
+  ): Promise<Array<[K, V]>>
 }
 
-interface IndexWritableStorage<K extends Tuple, V>
-  extends IndexReadableStorage<K, V> {
-  // TODO: batch.
-  set(index: Index<K, V>, key: K, value: V): Promise<void>
-  remove(index: Index<K, V>, key: K): Promise<void>
+interface IndexWritableStorage extends IndexReadableStorage {
+  batch<K extends Tuple, V>(
+    args: Map<Index<K, V>, { set?: Map<K, V>; remove?: Set<K> }>
+  ): Promise<void>
 }
 
-class IndexStorage<K extends Tuple, V> {
-  constructor(private store: KeyValueWritableStorage<any, any>) {}
+type KeyValueStorage = <T>(namespace: string) => KeyValueWritableStorage<T>
 
-  async get(index: Index<K, V>, key: K): Promise<V | undefined> {
-    // Prefixed k-v store.
-    const rootId = await this.store.get(["head", index.name])
-    // Prefixed k-v store.
-    const root: AvlNode<K, V> | undefined =
-      rootId && (await this.store.get([index.name, rootId]))
+class KeyValueIndexStorage {
+  constructor(private storage: KeyValueStorage) {}
 
-    return avl.get({
-      store: this.store, // TODO: new AvlNodeStorage
-      compare: compareQueryTuple(index.sort),
-      root: root,
-      key: key,
-    })
+  get head() {
+    return this.storage<string>("head")
   }
 
-  scan(index: Index<K, V>, args: ScanArgs): Promise<Array<[K, V]>> {
+  index<K extends Tuple, V>(index: Index<K, V>) {
+    return new AvlNodeStorage(this.storage<AvlNode<K, V>>(index.name))
+  }
+
+  async get<K extends Tuple, V>(
+    index: Index<K, V>,
+    key: K
+  ): Promise<V | undefined> {
+    const rootId = await this.head.get(index.name)
+    const store = this.index(index)
+    const compare = compareQueryTuple(index.sort)
+    const root = await store.get(rootId)
+    return avl.get({ store, compare, root, key })
+  }
+
+  async scan<K extends Tuple, V>(
+    index: Index<K, V>,
+    args: ScanArgs
+  ): Promise<Array<[K, V]>> {
+    const rootId = await this.head.get(index.name)
+    const store = this.index(index)
+    const compare = compareQueryTuple(index.sort)
+    const root = await store.get(rootId)
+
     // TODO
     return {} as any
   }
 }
 
-// Head storage? This is all built on top of key-value storage.
-
-// We want to use AVL in memory at the very least. Could persist to files
-// differently
-
-// class AvlIndexStorage<K extends Tuple, V>
-//   implements IndexWritableStorage<K, V> {
-
-//   constructor(private store: AvlNodeWritableStorage<K, V>) {}
-//   async get(index: Index<K, V>, key: K): Promise<V | undefined> {
-
-//   }
-//   scan(index: Index<K, V>, args: ScanArgs): Promise<Array<[K, V]>>
-//   set(index: Index<K, V>, key: K, value: V): Promise<void>
-//   remove(index: Index<K, V>, key: K): Promise<void>
-// }
-
 // File storage cannot incrementally write so it has to load the whole thing
 // into memory regardless. In that case, it makes sense to just use an in-memory
 // AVL tree under the hood.
-class FileIndexStorage<K extends Tuple, V> {}
-
-// insert(index, transaction, k, v)
-// head = getHead(transaction, index)
-// newHead = avl.insert(transaction, head, k, v)
-// return newHead
-
-// How do files work?
-// - load entire file into memory, flush to disk with AVL tree in memory.
-// - when scanning, we can scan writes as well as disk and compare results pretty easily.
 
 function insert<K extends Tuple, V>(args: {
   transaction: AvlNodeTransaction<K, V>
@@ -205,3 +195,10 @@ function scan<K extends Tuple, V>(args: {
 
 // const emailIndex = new TreeDb<[string, string], null>({
 //   name: "contacts-email",
+
+class FileStorage {
+  // Saving to files is just a matter of running through all the heads
+  // of all the trees. I think we still want to have namespaces for each
+  // node. This is a natural way to shard and helpful for sanity.
+  // heads: Record
+}

@@ -5,17 +5,13 @@ import { AvlTree } from "../src/avl-test-helpers"
 import { AvlNode } from "../src/avl-storage"
 import { AvlTreeIterator } from "../src/avl-iterator"
 import { compare } from "../src/utils"
-import {
-  InMemoryKeyValueStore,
-  InMemoryAvlNodeStorage,
-} from "../storage/memory"
+import { InMemoryKeyValueStorage } from "../storage/memory"
+import { AvlNodeStorage } from "../src/avl-storage"
 
 const iota = require("iota-array") as (n: number) => Array<number>
 
 function makeTree<K, V>() {
-  const store = new InMemoryAvlNodeStorage<any, any>(
-    new InMemoryKeyValueStore()
-  )
+  const store = new AvlNodeStorage<any, any>(new InMemoryKeyValueStorage())
   return new AvlTree<K, V>({
     compare: compare,
     root: undefined,

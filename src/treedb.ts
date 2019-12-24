@@ -1,44 +1,26 @@
-import { AvlNode, AvlNodeWritableStorage } from "./avl-storage"
+import { AvlNodeWritableStorage, AvlNodeStorage } from "./avl-storage"
 import { AvlTree } from "./avl-test-helpers"
-
-export interface KeyValueStorage {
-  get(key: string): Promise<any>
-  set(key: string, value: any): Promise<void>
-  delete(key: string): Promise<void>
-}
+import { KeyValueWritableStorage } from "./key-value-storage"
 
 function headKey(treeName: string) {
   return "avltree-head:" + treeName
 }
 
 export class TreeDb<K, V> {
-  private store: KeyValueStorage
-
-  private storage: AvlNodeWritableStorage<K, V> = {
-    get: async (id: string | undefined): Promise<AvlNode<K, V> | undefined> => {
-      if (id === undefined) {
-        return
-      }
-      return this.store.get(id)
-    },
-    set: async (node: AvlNode<K, V>): Promise<void> => {
-      return this.store.set(node.id, node)
-    },
-    // delete: async (id: string): Promise<void> => {
-    //   return this.store.delete(id)
-    // },
-  }
+  private store: KeyValueWritableStorage<any>
+  private storage: AvlNodeWritableStorage<K, V>
 
   private compare: (a: K, b: K) => number
 
   private name: string
   constructor(args: {
     name: string
-    store: KeyValueStorage
+    store: KeyValueWritableStorage<any>
     compare: (a: K, b: K) => number
   }) {
     this.name = args.name
     this.store = args.store
+    this.storage = new AvlNodeStorage(args.store)
     this.compare = args.compare
   }
 
@@ -65,14 +47,14 @@ export class TreeDb<K, V> {
   async set(key: K, value: V): Promise<void> {
     const tree = await this.getTree()
     const newTree = await tree.insert(key, value)
-    await this.store.set(headKey(this.name), newTree.root?.id)
+    await this.store.batch({ set: { [headKey(this.name)]: newTree.root?.id } })
     this.tree = newTree
   }
 
   async remove(key: K): Promise<void> {
     const tree = await this.getTree()
     const newTree = await tree.remove(key)
-    await this.store.set(headKey(this.name), newTree.root?.id)
+    await this.store.batch({ set: { [headKey(this.name)]: newTree.root?.id } })
     this.tree = newTree
   }
 }

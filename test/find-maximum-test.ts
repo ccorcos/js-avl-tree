@@ -1,12 +1,10 @@
 import test from "ava"
 import { AvlTree } from "../src/avl-test-helpers"
 import { compare } from "../src/utils"
-import {
-  InMemoryKeyValueStore,
-  InMemoryAvlNodeStorage,
-} from "../storage/memory"
+import { InMemoryKeyValueStorage } from "../storage/memory"
+import { AvlNodeStorage } from "../src/avl-storage"
 
-const store = new InMemoryAvlNodeStorage<any, any>(new InMemoryKeyValueStore())
+const store = new AvlNodeStorage<any, any>(new InMemoryKeyValueStorage())
 
 test("should return the maximum key in the tree", async function(t) {
   let tree = new AvlTree<number, undefined>({

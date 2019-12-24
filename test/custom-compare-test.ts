@@ -1,11 +1,9 @@
 import test from "ava"
 import { AvlTree } from "../src/avl-test-helpers"
-import {
-  InMemoryKeyValueStore,
-  InMemoryAvlNodeStorage,
-} from "../storage/memory"
+import { InMemoryKeyValueStorage } from "../storage/memory"
+import { AvlNodeStorage } from "../src/avl-storage"
 
-const store = new InMemoryAvlNodeStorage<any, any>(new InMemoryKeyValueStore())
+const store = new AvlNodeStorage<any, any>(new InMemoryKeyValueStorage())
 
 test("should function correctly given a non-reverse customCompare", async function(t) {
   let tree = new AvlTree<number, number>({

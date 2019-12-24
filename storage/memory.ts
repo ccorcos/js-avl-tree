@@ -1,34 +1,30 @@
-import { AvlNode, AvlNodeWritableStorage } from "../src/avl-storage"
+import { KeyValueWritableStorage } from "../src/key-value-storage"
 
-export class InMemoryKeyValueStore {
+export class InMemoryKeyValueStorage<T> implements KeyValueWritableStorage<T> {
   private map: Record<string, string> = {}
-  async get(key: string) {
-    return this.map[key]
-  }
-  async set(key: string, value: string) {
-    this.map[key] = value
-  }
-  async delete(key: string) {
-    delete this.map[key]
-  }
-}
 
-export class InMemoryAvlNodeStorage<K, V>
-  implements AvlNodeWritableStorage<K, V> {
-  constructor(private store: InMemoryKeyValueStore) {}
-  async get(id: string | undefined) {
-    if (!id) {
+  async get(key: string): Promise<T | undefined> {
+    const result = this.map[key]
+    if (result === undefined) {
       return
     }
-    const result = await this.store.get(id)
-    if (result !== undefined) {
-      return JSON.parse(result)
+    return JSON.parse(result)
+  }
+
+  async batch(args: {
+    set?: Record<string, T>
+    remove?: Set<string>
+  }): Promise<void> {
+    if (args.set) {
+      for (const [key, value] of Object.entries(args.set)) {
+        // TODO: use Object.freeze instead for perf.
+        this.map[key] = JSON.stringify(value)
+      }
     }
-  }
-  async set(node: AvlNode<K, V>) {
-    await this.store.set(node.id, JSON.stringify(node))
-  }
-  async delete(id: string) {
-    await this.store.delete(id)
+    if (args.remove) {
+      for (const key of Array.from(args.remove)) {
+        delete this.map[key]
+      }
+    }
   }
 }
