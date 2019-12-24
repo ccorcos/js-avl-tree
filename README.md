@@ -23,8 +23,6 @@ Soming soon...
 ## To Do
 
 - use key-value storage as the basis for everything.
-  - construct nodestorage from key-value storage.
-  - construct nodetransaction from key-value transaction
   - construct indexstorage from key-value storage.
   - construct head-storage.
   - do all of this on AVL and consider how this can work with files later.

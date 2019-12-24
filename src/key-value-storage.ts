@@ -6,6 +6,50 @@ export interface KeyValueWritableStorage<V> extends KeyValueReadableStorage<V> {
   batch(args: { set?: Record<string, V>; remove?: Set<string> }): Promise<void>
 }
 
+export class KeyValueStorage {
+  constructor(private store: KeyValueWritableStorage<any>) {}
+  get(key: string): Promise<any | undefined> {
+    return this.store.get(key)
+  }
+  batch(args: {
+    set?: Record<string, any>
+    remove?: Set<string>
+  }): Promise<void> {
+    return this.store.batch(args)
+  }
+  map<T>(namespace: string) {
+    return new NamespacedKeyValueStorage<T>(this, namespace)
+  }
+}
+
+export class NamespacedKeyValueStorage<V> {
+  constructor(
+    private store: KeyValueWritableStorage<V>,
+    private namespace: string
+  ) {}
+  get(key: string): Promise<V | undefined> {
+    return this.store.get(this.namespace + ":" + key)
+  }
+  batch(args: { set?: Record<string, V>; remove?: Set<string> }) {
+    const newArgs: typeof args = {}
+    if (args.set) {
+      const set: typeof args["set"] = {}
+      for (const [key, value] of Object.entries(args.set)) {
+        set[this.namespace + ":" + key] = value
+      }
+      newArgs.set = set
+    }
+    if (args.remove) {
+      const remove = new Set<string>()
+      for (const key of Array.from(args.remove)) {
+        remove.add(this.namespace + ":" + key)
+      }
+      newArgs.remove = remove
+    }
+    return newArgs
+  }
+}
+
 export class KeyValueTransaction<V> {
   constructor(public store: KeyValueWritableStorage<V>) {}
 
