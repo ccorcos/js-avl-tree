@@ -1,5 +1,6 @@
 import * as level from "level"
 import { KeyValueWritableStorage } from "../src/key-value-storage"
+import { BatchArgs } from "../src/avl-storage"
 
 type LevelBatchOp =
   | { type: "del"; key: string }
@@ -69,20 +70,17 @@ export class LevelDbKeyValueStorage<T> implements KeyValueWritableStorage<T> {
     return JSON.parse(result)
   }
 
-  async batch(args: {
-    set?: Record<string, T>
-    remove?: Set<string>
-  }): Promise<void> {
+  async batch(args: BatchArgs<T>): Promise<void> {
     await this.db.batch([
-      ...(args.set
-        ? Object.entries(args.set).map(([key, value]) => ({
+      ...(args.writes
+        ? Object.entries(args.writes).map(([key, value]) => ({
             type: "put" as const,
             key,
             value: JSON.stringify(value),
           }))
         : []),
-      ...(args.remove
-        ? Array.from(args.remove).map(key => ({ type: "del" as const, key }))
+      ...(args.deletes
+        ? Array.from(args.deletes).map(key => ({ type: "del" as const, key }))
         : []),
     ])
   }

@@ -1,9 +1,11 @@
+import { BatchArgs } from "./avl-storage"
+
 export interface KeyValueReadableStorage<V> {
   get(key: string): Promise<V | undefined>
 }
 
 export interface KeyValueWritableStorage<V> extends KeyValueReadableStorage<V> {
-  batch(args: { set?: Record<string, V>; remove?: Set<string> }): Promise<void>
+  batch(args: BatchArgs<V>): Promise<void>
 }
 
 export class KeyValueStorage {
@@ -11,10 +13,7 @@ export class KeyValueStorage {
   get(key: string): Promise<any | undefined> {
     return this.store.get(key)
   }
-  batch(args: {
-    set?: Record<string, any>
-    remove?: Set<string>
-  }): Promise<void> {
+  batch(args: BatchArgs<any>): Promise<void> {
     return this.store.batch(args)
   }
   map<T>(namespace: string) {
@@ -30,21 +29,21 @@ export class NamespacedKeyValueStorage<V> {
   get(key: string): Promise<V | undefined> {
     return this.store.get(this.namespace + ":" + key)
   }
-  batch(args: { set?: Record<string, V>; remove?: Set<string> }) {
+  batch(args: BatchArgs<V>) {
     const newArgs: typeof args = {}
-    if (args.set) {
-      const set: typeof args["set"] = {}
-      for (const [key, value] of Object.entries(args.set)) {
+    if (args.writes) {
+      const set: typeof args["writes"] = {}
+      for (const [key, value] of Object.entries(args.writes)) {
         set[this.namespace + ":" + key] = value
       }
-      newArgs.set = set
+      newArgs.writes = set
     }
-    if (args.remove) {
+    if (args.deletes) {
       const remove = new Set<string>()
-      for (const key of Array.from(args.remove)) {
+      for (const key of Array.from(args.deletes)) {
         remove.add(this.namespace + ":" + key)
       }
-      newArgs.remove = remove
+      newArgs.deletes = remove
     }
     return newArgs
   }
@@ -107,8 +106,8 @@ export class KeyValueTransaction<V> {
 
   async commit() {
     await this.store.batch({
-      set: this.sets,
-      remove: this.removes,
+      writes: this.sets,
+      deletes: this.removes,
     })
     this.sets = {}
     this.cache = {}

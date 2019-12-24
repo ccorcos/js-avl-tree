@@ -47,14 +47,18 @@ export class TreeDb<K, V> {
   async set(key: K, value: V): Promise<void> {
     const tree = await this.getTree()
     const newTree = await tree.insert(key, value)
-    await this.store.batch({ set: { [headKey(this.name)]: newTree.root?.id } })
+    await this.store.batch({
+      writes: { [headKey(this.name)]: newTree.root?.id },
+    })
     this.tree = newTree
   }
 
   async remove(key: K): Promise<void> {
     const tree = await this.getTree()
     const newTree = await tree.remove(key)
-    await this.store.batch({ set: { [headKey(this.name)]: newTree.root?.id } })
+    await this.store.batch({
+      writes: { [headKey(this.name)]: newTree.root?.id },
+    })
     this.tree = newTree
   }
 }

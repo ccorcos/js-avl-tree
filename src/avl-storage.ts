@@ -1,6 +1,11 @@
 import { randomId } from "./utils"
 import { KeyValueWritableStorage } from "./key-value-storage"
 
+export type BatchArgs<V> = {
+  writes?: Record<string, V>
+  deletes?: Set<string>
+}
+
 export interface AvlNode<K, V> {
   // Node ids.
   id: string
@@ -24,10 +29,7 @@ export interface AvlNodeReadableStorage<K, V> {
 
 export interface AvlNodeWritableStorage<K, V>
   extends AvlNodeReadableStorage<K, V> {
-  batch(args: {
-    set?: Record<string, AvlNode<K, V>>
-    remove?: Set<string>
-  }): Promise<void>
+  batch(args: BatchArgs<AvlNode<K, V>>): Promise<void>
 }
 
 export class AvlNodeStorage<K, V> implements AvlNodeWritableStorage<K, V> {
@@ -41,10 +43,7 @@ export class AvlNodeStorage<K, V> implements AvlNodeWritableStorage<K, V> {
     return this.store.get(id)
   }
 
-  async batch(args: {
-    set?: Record<string, AvlNode<K, V>>
-    remove?: Set<string>
-  }): Promise<void> {
+  async batch(args: BatchArgs<AvlNode<K, V>>): Promise<void> {
     this.store.batch(args)
   }
 }
@@ -92,7 +91,7 @@ export class AvlNodeTransaction<K, V> implements AvlNodeReadableStorage<K, V> {
   }
 
   async commit() {
-    await this.store.batch({ set: this.writes })
+    await this.store.batch({ writes: this.writes })
     // Writable nodes can no longer be accessed after the transaction is written.
     this.writes = {}
     // Let the garbage collector clean up the cache.

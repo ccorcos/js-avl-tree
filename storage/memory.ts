@@ -1,4 +1,5 @@
 import { KeyValueWritableStorage } from "../src/key-value-storage"
+import { BatchArgs } from "../src/avl-storage"
 
 export class InMemoryKeyValueStorage<T> implements KeyValueWritableStorage<T> {
   private map: Record<string, string> = {}
@@ -11,18 +12,15 @@ export class InMemoryKeyValueStorage<T> implements KeyValueWritableStorage<T> {
     return JSON.parse(result)
   }
 
-  async batch(args: {
-    set?: Record<string, T>
-    remove?: Set<string>
-  }): Promise<void> {
-    if (args.set) {
-      for (const [key, value] of Object.entries(args.set)) {
+  async batch(args: BatchArgs<T>): Promise<void> {
+    if (args.writes) {
+      for (const [key, value] of Object.entries(args.writes)) {
         // TODO: use Object.freeze instead for perf.
         this.map[key] = JSON.stringify(value)
       }
     }
-    if (args.remove) {
-      for (const key of Array.from(args.remove)) {
+    if (args.deletes) {
+      for (const key of Array.from(args.deletes)) {
         delete this.map[key]
       }
     }

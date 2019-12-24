@@ -22,6 +22,12 @@ Soming soon...
 
 ## To Do
 
+- Transaction shouldn't commit. It just holds all the stuff.
+  - store.commit(transaction) is what we want instead.
+- namespaced key-value store with namespaced transactions as well.
+
+
+
 - use key-value storage as the basis for everything.
   - construct indexstorage from key-value storage.
   - construct head-storage.
