@@ -6,6 +6,7 @@ import {
 } from "./avl-storage"
 import { KeyValueWritableStorage } from "./key-value-storage"
 import * as avl from "./avl-tree"
+import * as iter from "./avl-iterator"
 
 // TODO: encodings
 // export type BooleanValue = { t: "boolean"; v: boolean }
@@ -90,10 +91,10 @@ export type Index<K extends Tuple, V> = {
 }
 
 export type ScanArgs = {
-  gt?: Tuple
-  gte?: Tuple
-  lt?: Tuple
-  lte?: Tuple
+  gt?: QueryTuple
+  gte?: QueryTuple
+  lt?: QueryTuple
+  lte?: QueryTuple
   limit?: number
 }
 
@@ -111,10 +112,12 @@ interface IndexWritableStorage extends IndexReadableStorage {
   ): Promise<void>
 }
 
-type KeyValueStorage = <T>(namespace: string) => KeyValueWritableStorage<T>
+type NamespacedKeyValueStorage = <T>(
+  namespace: string
+) => KeyValueWritableStorage<T>
 
-class KeyValueIndexStorage {
-  constructor(private storage: KeyValueStorage) {}
+export class KeyValueIndexStorage {
+  constructor(private storage: NamespacedKeyValueStorage) {}
 
   get head() {
     return this.storage<string>("head")
@@ -144,43 +147,37 @@ class KeyValueIndexStorage {
     const compare = compareQueryTuple(index.sort)
     const root = await store.get(rootId)
 
-    // TODO
-    return {} as any
+    const results: Array<[K, V]> = []
+
+    let i = args.gt
+      ? await iter.gt({ store, compare, root, key: args.gt })
+      : args.gte
+      ? await iter.ge({ store, compare, root, key: args.gte })
+      : await iter.begin({ store, root })
+
+    while (i.valid && i.node) {
+      results.push([i.node.key as K, i.node.value])
+      await i.next()
+      if (args.limit && results.length === args.limit) {
+        break
+      }
+      if (args.lt && i.node && compare(i.node.key, args.lt) !== -1) {
+        break
+      }
+      if (args.lte && i.node && compare(i.node.key, args.lte) === 1) {
+        break
+      }
+    }
+
+    return results
+  }
+
+  async batch<K extends Tuple, V>(
+    args: Map<Index<K, V>, { set?: Map<K, V>; remove?: Set<K> }>
+  ): Promise<void> {
+    // TODO: HERE
   }
 }
-
-// File storage cannot incrementally write so it has to load the whole thing
-// into memory regardless. In that case, it makes sense to just use an in-memory
-// AVL tree under the hood.
-
-function insert<K extends Tuple, V>(args: {
-  transaction: AvlNodeTransaction<K, V>
-  root: AvlNode<K, V> | undefined
-  index: Index<K, V>
-  key: K
-  value: V
-}) {}
-
-function remove<K extends Tuple, V>(args: {
-  transaction: AvlNodeTransaction<K, V>
-  root: AvlNode<K, V> | undefined
-  index: Index<K, V>
-  key: K
-}) {}
-
-function get<K extends Tuple, V>(args: {
-  transaction: AvlNodeTransaction<K, V>
-  root: AvlNode<K, V> | undefined
-  index: Index<K, V>
-  key: K
-}) {}
-
-function scan<K extends Tuple, V>(args: {
-  transaction: AvlNodeTransaction<K, V>
-  root: AvlNode<K, V> | undefined
-  index: Index<K, V>
-  args: ScanArgs
-}) {}
 
 // const contacts: Index<[string], Contact> = {
 //   name: "contacts",
@@ -195,10 +192,3 @@ function scan<K extends Tuple, V>(args: {
 
 // const emailIndex = new TreeDb<[string, string], null>({
 //   name: "contacts-email",
-
-class FileStorage {
-  // Saving to files is just a matter of running through all the heads
-  // of all the trees. I think we still want to have namespaces for each
-  // node. This is a natural way to shard and helpful for sanity.
-  // heads: Record
-}
