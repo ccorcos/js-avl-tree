@@ -1,6 +1,9 @@
 import { getNode } from "./avl-storage"
 import { AvlTree } from "./avl-test-helpers"
-import { KeyValueWritableStorage } from "./key-value-storage"
+import {
+  KeyValueWritableStorage,
+  KeyValueTransaction,
+} from "./key-value-storage"
 
 function headKey(treeName: string) {
   return "avltree-head:" + treeName
@@ -45,18 +48,18 @@ export class TreeDb<K, V> {
   async set(key: K, value: V): Promise<void> {
     const tree = await this.getTree()
     const newTree = await tree.insert(key, value)
-    await this.store.batch({
-      writes: new Map([[headKey(this.name), newTree.root?.id]]),
-    })
+    const transaction = new KeyValueTransaction(this.store)
+    transaction.set(headKey(this.name), newTree.root?.id)
+    await this.store.batch(transaction)
     this.tree = newTree
   }
 
   async remove(key: K): Promise<void> {
     const tree = await this.getTree()
     const newTree = await tree.remove(key)
-    await this.store.batch({
-      writes: new Map([[headKey(this.name), newTree.root?.id]]),
-    })
+    const transaction = new KeyValueTransaction(this.store)
+    transaction.set(headKey(this.name), newTree.root?.id)
+    await this.store.batch(transaction)
     this.tree = newTree
   }
 }

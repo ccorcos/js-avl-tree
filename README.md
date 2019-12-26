@@ -22,8 +22,14 @@ Soming soon...
 
 ## To Do
 
+
 - IndexTransaction should use ShardedTransaction...
   - Batch should only ever accept transactions.
+
+- Finish contacts example
+- clean up  transactions ux.
+- Maybe make a Table abstraction like SQL.
+
 
 
 

@@ -1,6 +1,5 @@
 import { AvlNode, getNode } from "./avl-storage"
 import {
-  BatchArgs,
   ShardedKeyValueReadableStorage,
   ShardedKeyValueWritableStorage,
   KeyValueReadableStore,
@@ -112,16 +111,14 @@ export interface IndexReadableStorage {
 }
 
 export interface IndexWritableStorage extends IndexReadableStorage {
-  batch: <K extends Tuple, V>(
-    args: Map<Index<K, V>, BatchArgs<K, V>>
-  ) => Promise<void>
+  batch: (args: KeyValueIndexTransaction) => Promise<void>
 }
 
 export class KeyValueIndexReadableStore implements IndexReadableStorage {
-  constructor(protected store: ShardedKeyValueReadableStorage<any>) {}
+  constructor(protected store: ShardedKeyValueReadableStorage) {}
 
   protected get head() {
-    return new KeyValueReadableStore<string>(this.store, "head")
+    return new KeyValueReadableStore<string | undefined>(this.store, "head")
   }
 
   protected index<K extends Tuple, V>(index: Index<K, V>) {
@@ -141,7 +138,7 @@ export class KeyValueIndexReadableStore implements IndexReadableStorage {
 
   async scan<K extends Tuple, V>(
     index: Index<K, V>,
-    args: ScanArgs
+    args: ScanArgs = {}
   ): Promise<Array<[K, V]>> {
     const rootId = await this.head.get(index.name)
     const store = this.index(index)
@@ -177,66 +174,61 @@ export class KeyValueIndexReadableStore implements IndexReadableStorage {
 
 export class KeyValueIndexWritableStore extends KeyValueIndexReadableStore
   implements IndexWritableStorage {
-  constructor(protected store: ShardedKeyValueWritableStorage<any>) {
+  constructor(protected store: ShardedKeyValueWritableStorage) {
     super(store)
   }
 
-  async batch<K extends Tuple, V>(
-    args: Map<Index<K, V>, BatchArgs<K, V>>
-  ): Promise<void> {
-    const head: Map<string, string> = new Map()
-    const batch: Record<string, BatchArgs<string, any>> = {
-      head: { writes: head },
-    }
-
-    await Promise.all(
-      Array.from(args.entries()).map(async ([index, { writes, deletes }]) => {
-        const rootId = await this.head.get(index.name)
-        const store = this.index(index)
-        const compare = compareQueryTuple(index.sort)
-        let root = await getNode(store, rootId)
-        const transaction = new KeyValueTransaction(store)
-        if (writes) {
-          for (const [key, value] of writes) {
-            root = await avl.insert({ transaction, compare, root, key, value })
-          }
-        }
-        if (deletes) {
-          for (const key of deletes) {
-            root = await avl.remove({ transaction, compare, root, key })
-          }
-        }
-        if (root?.id !== rootId) {
-          batch[index.name] = transaction
-          head.set(index.name, root?.id)
-        }
-      })
-    )
-
-    await this.store.batch(batch)
+  async batch(transaction: KeyValueIndexTransaction): Promise<void> {
+    await this.store.batch(transaction.transaction)
   }
 }
 
 export class KeyValueIndexTransaction implements IndexReadableStorage {
-  private transaction: ShardedKeyValueTransaction<any>
-  constructor(protected store: ShardedKeyValueWritableStorage<any>) {
+  public transaction: ShardedKeyValueTransaction
+  private store: IndexReadableStorage
+
+  constructor(store: ShardedKeyValueReadableStorage) {
     this.transaction = new ShardedKeyValueTransaction(store)
+    this.store = new KeyValueIndexReadableStore(this.transaction)
   }
 
   async get<K extends Tuple, V>(
     index: Index<K, V>,
     key: K
   ): Promise<V | undefined> {
-    return new KeyValueIndexReadableStore(this.transaction).get(index, key)
+    return this.store.get(index, key)
   }
 
   async scan<K extends Tuple, V>(
     index: Index<K, V>,
     args: ScanArgs
   ): Promise<Array<[K, V]>> {
-    return new KeyValueIndexReadableStore(this.transaction).scan(index, args)
+    return this.store.scan(index, args)
   }
 
-  // set
-  // remove
+  protected get head() {
+    return this.transaction.getShard<string | undefined>("head")
+  }
+
+  protected index<K extends Tuple, V>(index: Index<K, V>) {
+    return this.transaction.getShard<AvlNode<K, V>>(index.name)
+  }
+
+  set = async <K extends Tuple, V>(index: Index<K, V>, key: K, value: V) => {
+    const rootId = await this.head.get(index.name)
+    const transaction = this.index(index)
+    const compare = compareQueryTuple(index.sort)
+    let root = await getNode(transaction, rootId)
+    root = await avl.insert({ transaction, compare, root, key, value })
+    this.head.set(index.name, root.id)
+  }
+
+  remove = async <K extends Tuple, V>(index: Index<K, V>, key: K) => {
+    const rootId = await this.head.get(index.name)
+    const transaction = this.index(index)
+    const compare = compareQueryTuple(index.sort)
+    let root = await getNode(transaction, rootId)
+    root = await avl.remove({ transaction, compare, root, key })
+    this.head.set(index.name, root?.id)
+  }
 }

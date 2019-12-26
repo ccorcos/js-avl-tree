@@ -1,6 +1,13 @@
+import * as _ from "lodash"
 import test from "ava"
 import { InMemoryShardedKeyValueStore } from "../storage/memory"
-import { KeyValueIndexWritableStore, Index } from "../src/db-index"
+import {
+  KeyValueIndexWritableStore,
+  Index,
+  KeyValueIndexTransaction,
+  MIN,
+  MAX,
+} from "../src/db-index"
 
 // We're going to create a database for storing contacts.
 interface Contact {
@@ -46,11 +53,14 @@ const email: Index<[string, string], null> = {
   sort: [1, 1],
 }
 
-const store = new KeyValueIndexWritableStore(new InMemoryShardedKeyValueStore())
+// TODO: this is lame
+const store2 = new InMemoryShardedKeyValueStore()
+const store = new KeyValueIndexWritableStore(store2)
 
 async function saveContact(contact: Contact) {
   // Remove the existing value from all indexes.
-  const transaction: any = {} // new Transaction(store)
+  const transaction = new KeyValueIndexTransaction(store2)
+
   const prev = await transaction.get(primary, [contact.id])
   if (prev) {
     transaction.remove(primary, [prev.id])
@@ -66,77 +76,77 @@ async function saveContact(contact: Contact) {
   await store.batch(transaction)
 }
 
-// /**
-//  * Lists contacts in last-first name order.
-//  */
-// async function* listContacts() {
-//   const tree = await lastFirstIndex.getTree()
-//   const iter = await tree.begin()
-//   while (iter.valid) {
-//     const [last, first, id] = iter.node!.key
-//     const contact = await contacts.get(id)
-//     yield contact!
-//     await iter.next()
-//   }
-// }
+/**
+ * Lists contacts in last-first name order.
+ */
+async function listContacts() {
+  const results = await store.scan(lastFirst)
+  return _.compact(
+    await Promise.all(
+      results.map(([[last, first, id], value]) => {
+        return store.get(primary, [id])
+      })
+    )
+  )
+}
 
-// /**
-//  * Lookup all contacts for a given email address.
-//  */
-// async function* lookupContacts(email: string) {
-//   const tree = await emailIndex.getTree()
-//   const iter = await tree.ge([email, ""])
-//   while (iter.valid) {
-//     const [e, id] = iter.node!.key
-//     if (e !== email) {
-//       return
-//     }
-//     const contact = await contacts.get(id)
-//     yield contact!
-//     await iter.next()
-//   }
-// }
+/**
+ * Lookup all contacts for a given email address.
+ */
+async function lookupContacts(email: string) {
+  const results = await store.scan(lastFirst, {
+    gte: [email, MIN],
+    lte: [email, MAX],
+  })
+  return _.compact(
+    await Promise.all(
+      results.map(([[email, id], value]) => {
+        return store.get(primary, [id])
+      })
+    )
+  )
+}
 
-// test("contacts example", async function(t) {
-//   await saveContact({
-//     id: "1",
-//     first: "chet",
-//     last: "corcos",
-//     email: "chet@corcos.com",
-//   })
-//   await saveContact({
-//     id: "2",
-//     first: "simon",
-//     last: "last",
-//     email: "simon@last.com",
-//   })
-//   await saveContact({
-//     id: "3",
-//     first: "andrew",
-//     last: "langdon",
-//     email: "andrew@langdon.com",
-//   })
-//   await saveContact({
-//     id: "4",
-//     first: "meghan",
-//     last: "navarro",
-//     email: "chet@corcos.com",
-//   })
+test("contacts example", async function(t) {
+  await saveContact({
+    id: "1",
+    first: "chet",
+    last: "corcos",
+    email: "chet@corcos.com",
+  })
+  await saveContact({
+    id: "2",
+    first: "simon",
+    last: "last",
+    email: "simon@last.com",
+  })
+  await saveContact({
+    id: "3",
+    first: "andrew",
+    last: "langdon",
+    email: "andrew@langdon.com",
+  })
+  await saveContact({
+    id: "4",
+    first: "meghan",
+    last: "navarro",
+    email: "chet@corcos.com",
+  })
 
-//   const lastFirstOrder: Array<Contact> = []
-//   for await (const contact of listContacts()) {
-//     lastFirstOrder.push(contact)
-//   }
-//   t.is(lastFirstOrder.length, 4)
-//   t.deepEqual(
-//     lastFirstOrder.map(c => c.last),
-//     ["corcos", "langdon", "last", "navarro"]
-//   )
+  const lastFirstOrder: Array<Contact> = []
+  for (const contact of await listContacts()) {
+    lastFirstOrder.push(contact)
+  }
+  t.is(lastFirstOrder.length, 4)
+  t.deepEqual(
+    lastFirstOrder.map(c => c.last),
+    ["corcos", "langdon", "last", "navarro"]
+  )
 
-//   const lookupResults: Array<Contact> = []
-//   for await (const contact of lookupContacts("chet@corcos.com")) {
-//     lookupResults.push(contact)
-//   }
+  const lookupResults: Array<Contact> = []
+  for (const contact of await lookupContacts("chet@corcos.com")) {
+    lookupResults.push(contact)
+  }
 
-//   t.is(lookupResults.length, 2)
-// })
+  t.is(lookupResults.length, 2)
+})

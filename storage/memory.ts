@@ -1,19 +1,20 @@
 import {
   ShardedKeyValueWritableStorage,
   KeyValueWritableStorage,
-  BatchArgs,
+  ShardedKeyValueTransaction,
+  KeyValueTransaction,
 } from "../src/key-value-storage"
 
-export class InMemoryShardedKeyValueStore<V>
-  implements ShardedKeyValueWritableStorage<V> {
-  private map: Map<string, KeyValueWritableStorage<V>> = new Map()
+export class InMemoryShardedKeyValueStore
+  implements ShardedKeyValueWritableStorage {
+  private map: Map<string, KeyValueWritableStorage<any>> = new Map()
 
-  get = async (shard: string, key: string): Promise<V | undefined> => {
+  get = async (shard: string, key: string): Promise<any | undefined> => {
     return this.map.get(shard)?.get(key)
   }
 
-  batch = async (args: Record<string, BatchArgs<string, V>>): Promise<void> => {
-    Object.entries(args).map(([shard, batch]) => {
+  batch = async (args: ShardedKeyValueTransaction): Promise<void> => {
+    Object.entries(args.shards).map(([shard, batch]) => {
       let store = this.map.get(shard)
       if (!store) {
         store = new InMemoryKeyValueStore()
@@ -35,7 +36,7 @@ export class InMemoryKeyValueStore<T> implements KeyValueWritableStorage<T> {
     return JSON.parse(result)
   }
 
-  async batch(args: BatchArgs<string, T>): Promise<void> {
+  async batch(args: KeyValueTransaction<T>): Promise<void> {
     if (args.writes) {
       for (const [key, value] of args.writes.entries()) {
         // TODO: use Object.freeze instead for perf.

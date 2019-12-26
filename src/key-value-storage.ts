@@ -1,15 +1,10 @@
-export type BatchArgs<K, V> = {
-  writes?: Map<K, V>
-  deletes?: Set<K>
+export interface ShardedKeyValueReadableStorage {
+  get: (shard: string, key: string) => Promise<any | undefined>
 }
 
-export interface ShardedKeyValueReadableStorage<V> {
-  get: (shard: string, key: string) => Promise<V | undefined>
-}
-
-export interface ShardedKeyValueWritableStorage<V>
-  extends ShardedKeyValueReadableStorage<V> {
-  batch: (args: Record<string, BatchArgs<string, V>>) => Promise<void>
+export interface ShardedKeyValueWritableStorage
+  extends ShardedKeyValueReadableStorage {
+  batch: (args: ShardedKeyValueTransaction) => Promise<void>
 }
 
 export interface KeyValueReadableStorage<V> {
@@ -17,12 +12,12 @@ export interface KeyValueReadableStorage<V> {
 }
 
 export interface KeyValueWritableStorage<V> extends KeyValueReadableStorage<V> {
-  batch: (args: BatchArgs<string, V>) => Promise<void>
+  batch: (args: KeyValueTransaction<V>) => Promise<void>
 }
 
 export class KeyValueReadableStore<V> implements KeyValueReadableStorage<V> {
   constructor(
-    protected store: ShardedKeyValueReadableStorage<V>,
+    protected store: ShardedKeyValueReadableStorage,
     protected shard: string
   ) {}
   get = (key: string): Promise<V | undefined> => {
@@ -30,18 +25,18 @@ export class KeyValueReadableStore<V> implements KeyValueReadableStorage<V> {
   }
 }
 
-export class KeyValueWritableStore<V> extends KeyValueReadableStore<V>
-  implements KeyValueWritableStorage<V> {
-  constructor(
-    protected store: ShardedKeyValueWritableStorage<V>,
-    protected shard: string
-  ) {
-    super(store, shard)
-  }
-  batch = (args: BatchArgs<string, V>): Promise<void> => {
-    return this.store.batch({ [this.shard]: args })
-  }
-}
+// export class KeyValueWritableStore<V> extends KeyValueReadableStore<V>
+//   implements KeyValueWritableStorage<V> {
+//   constructor(
+//     protected store: ShardedKeyValueWritableStorage<V>,
+//     protected shard: string
+//   ) {
+//     super(store, shard)
+//   }
+//   batch = (args: KeyValueTransaction<V>): Promise<void> => {
+//     return this.store.batch({ [this.shard]: args })
+//   }
+// }
 
 export class KeyValueTransaction<V> {
   constructor(public store: KeyValueReadableStorage<V>) {}
@@ -52,9 +47,6 @@ export class KeyValueTransaction<V> {
   public deletes: Set<string> = new Set()
 
   get = async (key: string): Promise<V | undefined> => {
-    if (!key) {
-      return
-    }
     if (this.writes.has(key)) {
       return this.writes.get(key)
     }
@@ -97,13 +89,13 @@ export class KeyValueTransaction<V> {
   }
 }
 
-export class ShardedKeyValueTransaction<V>
-  implements ShardedKeyValueReadableStorage<V> {
-  constructor(public store: ShardedKeyValueReadableStorage<V>) {}
+export class ShardedKeyValueTransaction
+  implements ShardedKeyValueReadableStorage {
+  constructor(public store: ShardedKeyValueReadableStorage) {}
 
-  public shards: Record<string, KeyValueTransaction<V>> = {}
+  public shards: Record<string, KeyValueTransaction<any>> = {}
 
-  private transaction(shard: string) {
+  public getShard<T>(shard: string): KeyValueTransaction<T> {
     let transaction = this.shards[shard]
     if (!transaction) {
       transaction = new KeyValueTransaction(
@@ -114,15 +106,19 @@ export class ShardedKeyValueTransaction<V>
     return transaction
   }
 
-  get = async (shard: string, key: string): Promise<V | undefined> => {
-    return this.transaction(shard).get(key)
+  get = async (shard: string, key: string): Promise<any | undefined> => {
+    return this.getShard(shard).get(key)
   }
 
-  set = (shard: string, key: string, value: V) => {
-    return this.transaction(shard).set(key, value)
+  set = (shard: string, key: string, value: any) => {
+    return this.getShard(shard).set(key, value)
+  }
+
+  unset = (shard: string, key: string) => {
+    return this.getShard(shard).unset(key)
   }
 
   remove = (shard: string, key: string) => {
-    return this.transaction(shard).remove(key)
+    return this.getShard(shard).remove(key)
   }
 }

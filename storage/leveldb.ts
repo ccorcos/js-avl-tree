@@ -1,5 +1,8 @@
 import * as level from "level"
-import { KeyValueWritableStorage, BatchArgs } from "../src/key-value-storage"
+import {
+  KeyValueWritableStorage,
+  KeyValueTransaction,
+} from "../src/key-value-storage"
 
 type LevelBatchOp =
   | { type: "del"; key: string }
@@ -69,7 +72,7 @@ export class LevelDbKeyValueStore<T> implements KeyValueWritableStorage<T> {
     return JSON.parse(result)
   }
 
-  async batch(args: BatchArgs<string, T>): Promise<void> {
+  async batch(args: KeyValueTransaction<T>): Promise<void> {
     await this.db.batch([
       ...(args.writes
         ? Array.from(args.writes.entries()).map(([key, value]) => ({
