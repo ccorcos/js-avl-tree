@@ -1,4 +1,4 @@
-import { AvlNodeWritableStorage, AvlNodeStorage } from "./avl-storage"
+import { AvlNodeWritableStorage, AvlNodeWritableStore } from "./avl-storage"
 import { AvlTree } from "./avl-test-helpers"
 import { KeyValueWritableStorage } from "./key-value-storage"
 
@@ -20,7 +20,7 @@ export class TreeDb<K, V> {
   }) {
     this.name = args.name
     this.store = args.store
-    this.storage = new AvlNodeStorage(args.store)
+    this.storage = new AvlNodeWritableStore(args.store)
     this.compare = args.compare
   }
 

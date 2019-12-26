@@ -1,70 +1,54 @@
-import { BatchArgs } from "./avl-storage"
+export type BatchArgs<V> = {
+  writes?: Record<string, V>
+  deletes?: Set<string>
+}
+
+export interface ShardedKeyValueReadableStorage<V> {
+  get: (shard: string, key: string) => Promise<V | undefined>
+}
+
+export interface ShardedKeyValueWritableStorage<V>
+  extends ShardedKeyValueReadableStorage<V> {
+  batch: (args: Record<string, BatchArgs<V>>) => Promise<void>
+}
 
 export interface KeyValueReadableStorage<V> {
-  get(key: string): Promise<V | undefined>
+  get: (key: string) => Promise<V | undefined>
 }
 
 export interface KeyValueWritableStorage<V> extends KeyValueReadableStorage<V> {
-  batch(args: BatchArgs<V>): Promise<void>
+  batch: (args: BatchArgs<V>) => Promise<void>
 }
 
-export class KeyValueStorage {
-  constructor(private store: KeyValueWritableStorage<any>) {}
-  get(key: string): Promise<any | undefined> {
-    return this.store.get(key)
-  }
-  batch(args: BatchArgs<any>): Promise<void> {
-    return this.store.batch(args)
-  }
-  map<T>(namespace: string) {
-    return new NamespacedKeyValueStorage<T>(this, namespace)
-  }
-}
-
-export class NamespacedKeyValueStorage<V> {
+export class KeyValueStore<V> implements KeyValueWritableStorage<V> {
   constructor(
-    private store: KeyValueWritableStorage<V>,
-    private namespace: string
+    private store: ShardedKeyValueWritableStorage<V>,
+    private shard: string
   ) {}
-  get(key: string): Promise<V | undefined> {
-    return this.store.get(this.namespace + ":" + key)
+  get = (key: string): Promise<V | undefined> => {
+    return this.store.get(this.shard, key)
   }
-  batch(args: BatchArgs<V>) {
-    const newArgs: typeof args = {}
-    if (args.writes) {
-      const set: typeof args["writes"] = {}
-      for (const [key, value] of Object.entries(args.writes)) {
-        set[this.namespace + ":" + key] = value
-      }
-      newArgs.writes = set
-    }
-    if (args.deletes) {
-      const remove = new Set<string>()
-      for (const key of Array.from(args.deletes)) {
-        remove.add(this.namespace + ":" + key)
-      }
-      newArgs.deletes = remove
-    }
-    return newArgs
+  batch = (args: BatchArgs<V>): Promise<void> => {
+    return this.store.batch({ [this.shard]: args })
   }
 }
 
 export class KeyValueTransaction<V> {
-  constructor(public store: KeyValueWritableStorage<V>) {}
+  constructor(public store: KeyValueReadableStorage<V>) {}
 
   // Cache to improve performance during a transaction.
   private cache: Record<string, V | undefined> = {}
-  private sets: Record<string, V> = {}
-  private removes: Set<string> = new Set()
+  private writes: Record<string, V> = {}
+  private deletes: Set<string> = new Set()
 
-  async get(key: string): Promise<V | undefined> {
+  get = async (key: string): Promise<V | undefined> => {
     if (!key) {
       return
     }
-    if (key in this.sets) {
-      return this.sets[key]
+    if (key in this.writes) {
+      return this.writes[key]
     }
-    if (this.removes.has(key)) {
+    if (this.deletes.has(key)) {
       return undefined
     }
     if (key in this.cache) {
@@ -77,40 +61,30 @@ export class KeyValueTransaction<V> {
     return value
   }
 
-  set(key: string, value: V) {
-    if (this.removes.has(key)) {
-      this.removes.delete(key)
+  set = (key: string, value: V) => {
+    if (this.deletes.has(key)) {
+      this.deletes.delete(key)
     }
     if (key in this.cache) {
       delete this.cache[key]
     }
-    this.sets[key] = value
+    this.writes[key] = value
   }
 
   // Don't remove the key, but undo the set if there was one.
-  unset(key: string) {
-    if (key in this.sets) {
-      delete this.sets[key]
+  unset = (key: string) => {
+    if (key in this.writes) {
+      delete this.writes[key]
     }
   }
 
-  remove(key: string) {
-    if (key in this.sets) {
-      delete this.sets[key]
+  remove = (key: string) => {
+    if (key in this.writes) {
+      delete this.writes[key]
     }
     if (key in this.cache) {
       delete this.cache[key]
     }
-    this.removes.add(key)
-  }
-
-  async commit() {
-    await this.store.batch({
-      writes: this.sets,
-      deletes: this.removes,
-    })
-    this.sets = {}
-    this.cache = {}
-    this.removes.clear()
+    this.deletes.add(key)
   }
 }

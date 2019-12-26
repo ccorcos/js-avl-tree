@@ -1,10 +1,9 @@
 import { randomId } from "./utils"
-import { KeyValueWritableStorage } from "./key-value-storage"
-
-export type BatchArgs<V> = {
-  writes?: Record<string, V>
-  deletes?: Set<string>
-}
+import {
+  KeyValueWritableStorage,
+  BatchArgs,
+  KeyValueReadableStorage,
+} from "./key-value-storage"
 
 export interface AvlNode<K, V> {
   // Node ids.
@@ -20,45 +19,54 @@ export interface AvlNode<K, V> {
   count: number
 }
 
+// Some type issues with KeyValueStorage so we are not using method syntax.
+// https://github.com/microsoft/TypeScript/issues/35843
 export interface AvlNodeReadableStorage<K, V> {
-  // Some type issues with key-value storage.
-  // https://github.com/microsoft/TypeScript/issues/35843
-  type: "avl-node-storage"
-  get(id: string | undefined): Promise<AvlNode<K, V> | undefined>
+  get: (id: string | undefined) => Promise<AvlNode<K, V> | undefined>
 }
 
 export interface AvlNodeWritableStorage<K, V>
   extends AvlNodeReadableStorage<K, V> {
-  batch(args: BatchArgs<AvlNode<K, V>>): Promise<void>
+  batch: (args: BatchArgs<AvlNode<K, V>>) => Promise<void>
 }
 
-export class AvlNodeStorage<K, V> implements AvlNodeWritableStorage<K, V> {
-  type = "avl-node-storage" as const
+export class AvlNodeReadableStore<K, V>
+  implements AvlNodeReadableStorage<K, V> {
+  constructor(private store: KeyValueReadableStorage<AvlNode<K, V>>) {}
+
+  get = async (id: string | undefined): Promise<AvlNode<K, V> | undefined> => {
+    if (id === undefined) {
+      return
+    }
+    return this.store.get(id)
+  }
+}
+
+export class AvlNodeWritableStore<K, V>
+  implements AvlNodeWritableStorage<K, V> {
   constructor(private store: KeyValueWritableStorage<AvlNode<K, V>>) {}
 
-  async get(id: string | undefined): Promise<AvlNode<K, V> | undefined> {
+  get = async (id: string | undefined): Promise<AvlNode<K, V> | undefined> => {
     if (id === undefined) {
       return
     }
     return this.store.get(id)
   }
 
-  async batch(args: BatchArgs<AvlNode<K, V>>): Promise<void> {
+  batch = async (args: BatchArgs<AvlNode<K, V>>): Promise<void> => {
     this.store.batch(args)
   }
 }
 
 export class AvlNodeTransaction<K, V> implements AvlNodeReadableStorage<K, V> {
-  type = "avl-node-storage" as const
-
-  constructor(public store: AvlNodeWritableStorage<K, V>) {}
+  constructor(public store: AvlNodeReadableStorage<K, V>) {}
 
   private cache: Record<string, AvlNode<K, V> | undefined> = {}
   public writes: Record<string, AvlNode<K, V>> = {}
 
   // Transactions have a caching layer to improve performance and also
   // return data that is queued to be written.
-  async get(id: string | undefined): Promise<AvlNode<K, V> | undefined> {
+  get = async (id: string | undefined): Promise<AvlNode<K, V> | undefined> => {
     if (!id) {
       return
     }
@@ -73,13 +81,13 @@ export class AvlNodeTransaction<K, V> implements AvlNodeReadableStorage<K, V> {
     return data
   }
 
-  set(value: AvlNode<K, V>) {
+  set = (value: AvlNode<K, V>) => {
     const id = value.id
     this.cache[id] = value
     this.writes[id] = value
   }
 
-  clone(node: AvlNode<K, V>): AvlNode<K, V> {
+  clone = (node: AvlNode<K, V>): AvlNode<K, V> => {
     // When cloning a node, remove it from the write so we don't create unnecessary
     // amounts of data. The `checkStore` test cases make sure of this.
     delete this.writes[node.id]

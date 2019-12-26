@@ -1,9 +1,4 @@
-import {
-  AvlNode,
-  AvlNodeTransaction,
-  AvlNodeWritableStorage,
-  AvlNodeStorage,
-} from "./avl-storage"
+import { AvlNode, AvlNodeReadableStore } from "./avl-storage"
 import { KeyValueWritableStorage } from "./key-value-storage"
 import * as avl from "./avl-tree"
 import * as iter from "./avl-iterator"
@@ -124,7 +119,7 @@ export class KeyValueIndexStorage {
   }
 
   index<K extends Tuple, V>(index: Index<K, V>) {
-    return new AvlNodeStorage(this.storage<AvlNode<K, V>>(index.name))
+    return new AvlNodeReadableStore(this.storage<AvlNode<K, V>>(index.name))
   }
 
   async get<K extends Tuple, V>(

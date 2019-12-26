@@ -1,6 +1,5 @@
 import * as level from "level"
-import { KeyValueWritableStorage } from "../src/key-value-storage"
-import { BatchArgs } from "../src/avl-storage"
+import { KeyValueWritableStorage, BatchArgs } from "../src/key-value-storage"
 
 type LevelBatchOp =
   | { type: "del"; key: string }

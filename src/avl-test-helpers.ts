@@ -222,7 +222,7 @@ export class AvlTreeBatch<K, V> {
     }
     await this.store.batch(this.transaction)
     return new AvlTree({
-      store: this.transaction.store,
+      store: this.store,
       compare: this.compare,
       root: root,
     })

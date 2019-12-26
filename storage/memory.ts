@@ -1,5 +1,4 @@
-import { KeyValueWritableStorage } from "../src/key-value-storage"
-import { BatchArgs } from "../src/avl-storage"
+import { KeyValueWritableStorage, BatchArgs } from "../src/key-value-storage"
 
 export class InMemoryKeyValueStorage<T> implements KeyValueWritableStorage<T> {
   private map: Record<string, string> = {}
