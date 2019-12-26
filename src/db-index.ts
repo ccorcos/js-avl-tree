@@ -5,8 +5,10 @@ import {
 } from "./avl-storage"
 import {
   BatchArgs,
+  ShardedKeyValueReadableStorage,
   ShardedKeyValueWritableStorage,
-  KeyValueStore,
+  KeyValueReadableStore,
+  ShardedKeyValueTransaction,
 } from "./key-value-storage"
 import * as avl from "./avl-tree"
 import * as iter from "./avl-iterator"
@@ -118,16 +120,16 @@ export interface IndexWritableStorage extends IndexReadableStorage {
   ) => Promise<void>
 }
 
-export class KeyValueIndexStorage implements IndexWritableStorage {
-  constructor(private store: ShardedKeyValueWritableStorage<any>) {}
+export class KeyValueIndexReadableStore implements IndexReadableStorage {
+  constructor(protected store: ShardedKeyValueReadableStorage<any>) {}
 
-  get head() {
-    return new KeyValueStore<string>(this.store, "head")
+  protected get head() {
+    return new KeyValueReadableStore<string>(this.store, "head")
   }
 
-  index<K extends Tuple, V>(index: Index<K, V>) {
+  protected index<K extends Tuple, V>(index: Index<K, V>) {
     return new AvlNodeReadableStore(
-      new KeyValueStore<AvlNode<K, V>>(this.store, index.name)
+      new KeyValueReadableStore<AvlNode<K, V>>(this.store, index.name)
     )
   }
 
@@ -176,6 +178,13 @@ export class KeyValueIndexStorage implements IndexWritableStorage {
 
     return results
   }
+}
+
+export class KeyValueIndexWritableStore extends KeyValueIndexReadableStore
+  implements IndexWritableStorage {
+  constructor(protected store: ShardedKeyValueWritableStorage<any>) {
+    super(store)
+  }
 
   async batch<K extends Tuple, V>(
     args: Map<Index<K, V>, BatchArgs<K, V>>
@@ -211,4 +220,28 @@ export class KeyValueIndexStorage implements IndexWritableStorage {
 
     await this.store.batch(batch)
   }
+}
+
+export class KeyValueIndexTransaction implements IndexReadableStorage {
+  private transaction: ShardedKeyValueTransaction<any>
+  constructor(protected store: ShardedKeyValueWritableStorage<any>) {
+    this.transaction = new ShardedKeyValueTransaction(store)
+  }
+
+  async get<K extends Tuple, V>(
+    index: Index<K, V>,
+    key: K
+  ): Promise<V | undefined> {
+    return new KeyValueIndexReadableStore(this.transaction).get(index, key)
+  }
+
+  async scan<K extends Tuple, V>(
+    index: Index<K, V>,
+    args: ScanArgs
+  ): Promise<Array<[K, V]>> {
+    return new KeyValueIndexReadableStore(this.transaction).scan(index, args)
+  }
+
+  // set
+  // remove
 }

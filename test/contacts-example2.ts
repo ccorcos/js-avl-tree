@@ -1,7 +1,6 @@
 import test from "ava"
-import { compare } from "../src/utils"
 import { InMemoryShardedKeyValueStore } from "../storage/memory"
-import { KeyValueIndexStorage, Index } from "../src/db-index"
+import { KeyValueIndexWritableStore, Index } from "../src/db-index"
 
 // We're going to create a database for storing contacts.
 interface Contact {
@@ -47,26 +46,25 @@ const email: Index<[string, string], null> = {
   sort: [1, 1],
 }
 
-const store = new KeyValueIndexStorage(new InMemoryShardedKeyValueStore())
+const store = new KeyValueIndexWritableStore(new InMemoryShardedKeyValueStore())
 
-// async function saveContact(contact: Contact) {
-//   // Remove the existing value from all indexes.
-//   const existingContact = await store.get(primary, [contact.id])
-//   // TODO: batch!
-//   if (existingContact) {
-//     await contacts.remove(existingContact.id)
-//     await lastFirstIndex.remove([
-//       existingContact.last,
-//       existingContact.first,
-//       existingContact.id,
-//     ])
-//     await emailIndex.remove([existingContact.email, existingContact.id])
-//   }
-//   // Add new value to all indexes.
-//   await contacts.set(contact.id, contact)
-//   await lastFirstIndex.set([contact.last, contact.first, contact.id], null)
-//   await emailIndex.set([contact.email, contact.id], null)
-// }
+async function saveContact(contact: Contact) {
+  // Remove the existing value from all indexes.
+  const transaction: any = {} // new Transaction(store)
+  const prev = await transaction.get(primary, [contact.id])
+  if (prev) {
+    transaction.remove(primary, [prev.id])
+    transaction.remove(lastFirst, [prev.last, prev.first, prev.id])
+    transaction.remove(email, [prev.email, prev.id])
+  }
+
+  // Add new value to all indexes.
+  transaction.set(primary, [contact.id], contact)
+  transaction.set(lastFirst, [contact.last, contact.first, contact.id], null)
+  transaction.set(email, [contact.email, contact.id], null)
+
+  await store.batch(transaction)
+}
 
 // /**
 //  * Lists contacts in last-first name order.
