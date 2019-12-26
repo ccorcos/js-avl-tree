@@ -48,8 +48,8 @@ export class KeyValueTransaction<V> {
 
   // Cache to improve performance during a transaction.
   private cache: Map<string, V | undefined> = new Map()
-  private writes: Map<string, V> = new Map()
-  private deletes: Set<string> = new Set()
+  public writes: Map<string, V> = new Map()
+  public deletes: Set<string> = new Set()
 
   get = async (key: string): Promise<V | undefined> => {
     if (!key) {

@@ -10,6 +10,7 @@ import {
   AvlNodeWritableStorage,
   AvlNodeTransaction,
   AvlNodeReadableStorage,
+  getNode,
 } from "./avl-storage"
 import { Compare, insert, remove, get } from "./avl-tree"
 import {
@@ -23,6 +24,7 @@ import {
   gt,
   ge,
 } from "./avl-iterator"
+import { KeyValueTransaction } from "./key-value-storage"
 
 /**
  * A convenient abstraction that isn't quite so functional.
@@ -43,7 +45,7 @@ export class AvlTree<K, V> {
   }
 
   async insert(key: K, value: V) {
-    const transaction = new AvlNodeTransaction(this.store)
+    const transaction = new KeyValueTransaction(this.store)
     const newRoot = await insert({
       transaction,
       compare: this.compare,
@@ -60,7 +62,7 @@ export class AvlTree<K, V> {
   }
 
   async remove(key: K) {
-    const transaction = new AvlNodeTransaction(this.store)
+    const transaction = new KeyValueTransaction(this.store)
     const newRoot = await remove({
       transaction,
       compare: this.compare,
@@ -187,7 +189,7 @@ export class AvlTreeBatch<K, V> {
     this.root = args.root
     this.compare = args.compare
     this.store = args.store
-    this.transaction = new AvlNodeTransaction(args.store)
+    this.transaction = new KeyValueTransaction(args.store)
   }
 
   insert(key: K, value: V) {
@@ -245,7 +247,7 @@ export class AvlTreeWalker<K, V> {
   }
 
   get left() {
-    const left = this.node.then(n => n && this.store.get(n.leftId))
+    const left = this.node.then(n => n && getNode(this.store, n.leftId))
     return new AvlTreeWalker({
       store: this.store,
       node: left,
@@ -253,7 +255,7 @@ export class AvlTreeWalker<K, V> {
   }
 
   get right() {
-    const right = this.node.then(n => n && this.store.get(n.rightId))
+    const right = this.node.then(n => n && getNode(this.store, n.rightId))
     return new AvlTreeWalker({
       store: this.store,
       node: right,
@@ -271,8 +273,8 @@ async function printNode<K, V>(
   }
   return [
     indent + node.key + "(" + node.count + ")",
-    await printNode(await store.get(node?.leftId), store, indent + "l:"),
-    await printNode(await store.get(node?.rightId), store, indent + "r:"),
+    await printNode(await getNode(store, node?.leftId), store, indent + "l:"),
+    await printNode(await getNode(store, node?.rightId), store, indent + "r:"),
   ]
     .filter(Boolean)
     .join("\n")

@@ -2,16 +2,15 @@
 import * as _ from "lodash"
 import test, { ExecutionContext } from "ava"
 import { AvlTree } from "../src/avl-test-helpers"
-import { AvlNode } from "../src/avl-storage"
+import { AvlNode, getNode } from "../src/avl-storage"
 import { AvlTreeIterator } from "../src/avl-iterator"
 import { compare } from "../src/utils"
 import { InMemoryKeyValueStore } from "../storage/memory"
-import { AvlNodeWritableStore } from "../src/avl-storage"
 
 const iota = require("iota-array") as (n: number) => Array<number>
 
 function makeTree<K, V>() {
-  const store = new AvlNodeWritableStore<any, any>(new InMemoryKeyValueStore())
+  const store = new InMemoryKeyValueStore<any>()
   return new AvlTree<K, V>({
     compare: compare,
     root: undefined,
@@ -33,8 +32,8 @@ async function checkTree<K, V>(
     if (!node) {
       return 0 // return the size.
     }
-    const left = await tree.store.get(node.leftId)
-    const right = await tree.store.get(node.rightId)
+    const left = await getNode(tree.store, node.leftId)
+    const right = await getNode(tree.store, node.rightId)
 
     if (node.leftId && !left) {
       t.fail("left not found")
@@ -77,7 +76,7 @@ function checkStore<K, V>(
   ids: Array<string>,
   t: ExecutionContext<unknown>
 ) {
-  const keys = Object.keys((tree as any).store.store.map)
+  const keys = Object.keys((tree as any).store.map)
   keys.sort()
   ids = Array.from(new Set(ids))
   ids.sort()

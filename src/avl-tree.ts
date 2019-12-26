@@ -3,6 +3,9 @@ import {
   AvlNode,
   AvlNodeReadableStorage,
   AvlNodeTransaction,
+  getNode,
+  setNode,
+  cloneNode,
 } from "./avl-storage"
 
 export type Compare<K> = (a: K, b: K) => number
@@ -12,7 +15,7 @@ async function leftHeight<K, V>(args: {
   node: AvlNode<K, V>
 }) {
   const { transaction, node } = args
-  const left = await transaction.get(node.leftId)
+  const left = await getNode(transaction, node.leftId)
   if (!left) {
     return -1
   }
@@ -24,7 +27,7 @@ async function rightHeight<K, V>(args: {
   node: AvlNode<K, V>
 }) {
   const { transaction, node } = args
-  const right = await transaction.get(node.rightId)
+  const right = await getNode(transaction, node.rightId)
   if (!right) {
     return -1
   }
@@ -36,7 +39,7 @@ async function leftCount<K, V>(args: {
   node: AvlNode<K, V>
 }) {
   const { transaction, node } = args
-  const left = await transaction.get(node.leftId)
+  const left = await getNode(transaction, node.leftId)
   if (!left) {
     return 0
   }
@@ -48,7 +51,7 @@ async function rightCount<K, V>(args: {
   node: AvlNode<K, V>
 }) {
   const { transaction, node } = args
-  const right = await transaction.get(node.rightId)
+  const right = await getNode(transaction, node.rightId)
   if (!right) {
     return 0
   }
@@ -73,13 +76,13 @@ async function rotateRight<K, V>(args: {
   if (!root.leftId) {
     throw Error("Cannot rotateRight without a left!")
   }
-  const left = await transaction.get(root.leftId)
+  const left = await getNode(transaction, root.leftId)
   if (!left) {
     throw Error("Cannot rotateRight without a left!")
   }
 
-  const a = transaction.clone(left)
-  const b = transaction.clone(root)
+  const a = cloneNode(transaction, left)
+  const b = cloneNode(transaction, root)
 
   b.leftId = a.rightId
   a.rightId = b.id
@@ -95,8 +98,8 @@ async function rotateRight<K, V>(args: {
     1
   a.count = (await leftCount({ transaction, node: a })) + b.count + 1
 
-  transaction.set(a)
-  transaction.set(b)
+  setNode(transaction, a)
+  setNode(transaction, b)
   return a
 }
 
@@ -123,8 +126,8 @@ async function rotateLeft<K, V>(args: {
     throw Error("Cannot rotateRight without a right!")
   }
 
-  const b = transaction.clone(right)
-  const a = transaction.clone(root)
+  const b = cloneNode(transaction, right)
+  const a = cloneNode(transaction, root)
 
   a.rightId = b.leftId
   b.leftId = a.id
@@ -141,8 +144,8 @@ async function rotateLeft<K, V>(args: {
     1
   b.count = (await rightCount({ transaction, node: b })) + a.count + 1
 
-  transaction.set(a)
-  transaction.set(b)
+  setNode(transaction, a)
+  setNode(transaction, b)
   return b
 }
 
@@ -157,9 +160,9 @@ export async function get<K, V>(args: {
   while (node) {
     const direction = compare(key, node.key)
     if (direction < 0) {
-      node = await store.get(node.leftId)
+      node = await getNode(store, node.leftId)
     } else if (direction > 0) {
-      node = await store.get(node.rightId)
+      node = await getNode(store, node.rightId)
     } else {
       return node.value
     }
@@ -182,9 +185,9 @@ export async function findPath<K, V>(args: {
     stack.push(node)
     const direction = compare(key, node.key)
     if (direction < 0) {
-      node = await store.get(node.leftId)
+      node = await getNode(store, node.leftId)
     } else if (direction > 0) {
-      node = await store.get(node.rightId)
+      node = await getNode(store, node.rightId)
     } else {
       node = undefined
     }
@@ -198,11 +201,11 @@ function clonePath<K, V>(
 ) {
   const newPath = [...path]
   // Clone the entire path.
-  newPath[0] = transaction.clone(newPath[0])
+  newPath[0] = cloneNode(transaction, newPath[0])
   for (let i = 1; i < newPath.length; i++) {
     const prev = newPath[i - 1]
     const node = newPath[i]
-    const newNode = transaction.clone(newPath[i])
+    const newNode = cloneNode(transaction, newPath[i])
     if (prev.leftId === node.id) {
       prev.leftId = newNode.id
     } else {
@@ -267,7 +270,7 @@ export async function insert<K, V>(args: {
       height: 0,
       count: 1,
     }
-    transaction.set(newNode)
+    setNode(transaction, newNode)
     return newNode
   }
 
@@ -287,7 +290,7 @@ export async function insert<K, V>(args: {
     stack[stack.length - 1].value = value
     // Save the new path.
     for (const node of stack) {
-      transaction.set(node)
+      setNode(transaction, node)
     }
     // Return the new root.
     return stack[0]
@@ -312,7 +315,7 @@ export async function insert<K, V>(args: {
 
   // Save the new path.
   for (const node of stack) {
-    transaction.set(node)
+    setNode(transaction, node)
   }
 
   // Balance the tree.
@@ -357,7 +360,7 @@ async function rebalanceInsert<K, V>(args: {
   const balanceState = await getBalanceState({ transaction, node })
 
   if (balanceState === BalanceState.UNBALANCED_LEFT) {
-    const left = (await transaction.get(node.leftId))!
+    const left = (await getNode(transaction, node.leftId))!
     const direction = compare(key, left.key)
     if (direction < 0) {
       // Left left case
@@ -370,7 +373,7 @@ async function rebalanceInsert<K, V>(args: {
   }
 
   if (balanceState === BalanceState.UNBALANCED_RIGHT) {
-    const right = (await transaction.get(node.rightId))!
+    const right = (await getNode(transaction, node.rightId))!
     const direction = compare(key, right.key)
     if (direction > 0) {
       // Right right case
@@ -414,12 +417,12 @@ export async function remove<K, V>(args: {
 
   // Save the new path.
   for (const node of stack) {
-    transaction.set(node)
+    setNode(transaction, node)
   }
 
   // Remove from the end of the stack.
-  const left = await transaction.get(last.leftId)
-  const right = await transaction.get(last.rightId)
+  const left = await getNode(transaction, last.leftId)
+  const right = await getNode(transaction, last.rightId)
 
   if (!left && !right) {
     // Update pointer from the previous node.
@@ -441,8 +444,8 @@ export async function remove<K, V>(args: {
         prev.rightId = right.id
       }
     } else {
-      const newRoot = transaction.clone(right)
-      transaction.set(newRoot)
+      const newRoot = cloneNode(transaction, right)
+      setNode(transaction, newRoot)
       stack.push(newRoot)
     }
   } else if (left && !right) {
@@ -454,8 +457,8 @@ export async function remove<K, V>(args: {
         prev.rightId = left.id
       }
     } else {
-      const newRoot = transaction.clone(left)
-      transaction.set(newRoot)
+      const newRoot = cloneNode(transaction, left)
+      setNode(transaction, newRoot)
       stack.push(newRoot)
     }
   } else if (left && right) {
@@ -473,7 +476,7 @@ export async function remove<K, V>(args: {
       key: inOrderSuccessor.key,
     })
     last.rightId = newRight?.id
-    transaction.set(last)
+    setNode(transaction, last)
     stack.push(last)
   }
 
@@ -516,7 +519,7 @@ async function rebalanceRemove<K, V>(args: {
 
   const balanceState = await getBalanceState({ transaction, node: node })
   if (balanceState === BalanceState.UNBALANCED_LEFT) {
-    const left = await transaction.get(node.leftId)
+    const left = await getNode(transaction, node.leftId)
     if (!left) {
       throw new Error("Left must exist!")
     }
@@ -540,7 +543,7 @@ async function rebalanceRemove<K, V>(args: {
   }
 
   if (balanceState === BalanceState.UNBALANCED_RIGHT) {
-    const right = await transaction.get(node.rightId)
+    const right = await getNode(transaction, node.rightId)
     if (!right) {
       throw new Error("Right must exist!")
     }
@@ -577,7 +580,7 @@ async function minNode<K, V>(args: {
   const { store, root } = args
   let current = root
   let left: AvlNode<K, V> | undefined
-  while ((left = await store.get(current.leftId))) {
+  while ((left = await getNode(store, current.leftId))) {
     current = left
   }
   return current

@@ -1,14 +1,11 @@
-import {
-  AvlNode,
-  AvlNodeReadableStore,
-  AvlNodeTransaction,
-} from "./avl-storage"
+import { AvlNode, getNode } from "./avl-storage"
 import {
   BatchArgs,
   ShardedKeyValueReadableStorage,
   ShardedKeyValueWritableStorage,
   KeyValueReadableStore,
   ShardedKeyValueTransaction,
+  KeyValueTransaction,
 } from "./key-value-storage"
 import * as avl from "./avl-tree"
 import * as iter from "./avl-iterator"
@@ -128,9 +125,7 @@ export class KeyValueIndexReadableStore implements IndexReadableStorage {
   }
 
   protected index<K extends Tuple, V>(index: Index<K, V>) {
-    return new AvlNodeReadableStore(
-      new KeyValueReadableStore<AvlNode<K, V>>(this.store, index.name)
-    )
+    return new KeyValueReadableStore<AvlNode<K, V>>(this.store, index.name)
   }
 
   async get<K extends Tuple, V>(
@@ -140,7 +135,7 @@ export class KeyValueIndexReadableStore implements IndexReadableStorage {
     const rootId = await this.head.get(index.name)
     const store = this.index(index)
     const compare = compareQueryTuple(index.sort)
-    const root = await store.get(rootId)
+    const root = await getNode(store, rootId)
     return avl.get({ store, compare, root, key })
   }
 
@@ -151,7 +146,7 @@ export class KeyValueIndexReadableStore implements IndexReadableStorage {
     const rootId = await this.head.get(index.name)
     const store = this.index(index)
     const compare = compareQueryTuple(index.sort)
-    const root = await store.get(rootId)
+    const root = await getNode(store, rootId)
 
     const results: Array<[K, V]> = []
 
@@ -199,8 +194,8 @@ export class KeyValueIndexWritableStore extends KeyValueIndexReadableStore
         const rootId = await this.head.get(index.name)
         const store = this.index(index)
         const compare = compareQueryTuple(index.sort)
-        let root = await store.get(rootId)
-        const transaction = new AvlNodeTransaction(store)
+        let root = await getNode(store, rootId)
+        const transaction = new KeyValueTransaction(store)
         if (writes) {
           for (const [key, value] of writes) {
             root = await avl.insert({ transaction, compare, root, key, value })

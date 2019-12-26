@@ -22,8 +22,8 @@ Soming soon...
 
 ## To Do
 
-- No more AvlStorage -- just use KeyValue storage.
-- No more AvlTransaction -- just KeyValue transaction
+- IndexTransaction should use ShardedTransaction...
+  - Batch should only ever accept transactions.
 
 
 

@@ -1,4 +1,4 @@
-import { AvlNodeWritableStorage, AvlNodeWritableStore } from "./avl-storage"
+import { getNode } from "./avl-storage"
 import { AvlTree } from "./avl-test-helpers"
 import { KeyValueWritableStorage } from "./key-value-storage"
 
@@ -8,7 +8,6 @@ function headKey(treeName: string) {
 
 export class TreeDb<K, V> {
   private store: KeyValueWritableStorage<any>
-  private storage: AvlNodeWritableStorage<K, V>
 
   private compare: (a: K, b: K) => number
 
@@ -20,7 +19,6 @@ export class TreeDb<K, V> {
   }) {
     this.name = args.name
     this.store = args.store
-    this.storage = new AvlNodeWritableStore(args.store)
     this.compare = args.compare
   }
 
@@ -29,10 +27,10 @@ export class TreeDb<K, V> {
     if (this.tree) {
       return this.tree
     }
-    const nodeId: string = await this.store.get(headKey(this.name))
-    const root = await this.storage.get(nodeId)
+    const nodeId: string | undefined = await this.store.get(headKey(this.name))
+    const root = await getNode<K, V>(this.store, nodeId)
     this.tree = new AvlTree<K, V>({
-      store: this.storage,
+      store: this.store,
       compare: this.compare,
       root: root,
     })

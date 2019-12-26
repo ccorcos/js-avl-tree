@@ -1,4 +1,4 @@
-import { AvlNode, AvlNodeReadableStorage } from "./avl-storage"
+import { AvlNode, AvlNodeReadableStorage, getNode } from "./avl-storage"
 import { Compare, findPath } from "./avl-tree"
 
 /**
@@ -53,7 +53,7 @@ export class AvlTreeIterator<K, V> {
       }
       return 0
     } else {
-      const left = await this.store.get(stack[stack.length - 1].leftId)
+      const left = await getNode(this.store, stack[stack.length - 1].leftId)
       if (left) {
         idx = left.count
       }
@@ -61,7 +61,7 @@ export class AvlTreeIterator<K, V> {
     for (let s = stack.length - 2; s >= 0; --s) {
       if (stack[s + 1].id === stack[s].rightId) {
         ++idx
-        const left = await this.store.get(stack[s].leftId)
+        const left = await getNode(this.store, stack[s].leftId)
         if (left) {
           idx += left.count
         }
@@ -79,12 +79,12 @@ export class AvlTreeIterator<K, V> {
       throw new Error("Invalid iterator")
     }
     let n: AvlNode<K, V> | undefined = stack[stack.length - 1]
-    const right = await this.store.get(n.rightId)
+    const right = await getNode(this.store, n.rightId)
     if (right) {
       n = right
       while (n) {
         stack.push(n)
-        n = await this.store.get(n.leftId)
+        n = await getNode(this.store, n.leftId)
       }
     } else {
       stack.pop()
@@ -104,12 +104,12 @@ export class AvlTreeIterator<K, V> {
       throw new Error("Invalid iterator")
     }
     let n: AvlNode<K, V> | undefined = stack[stack.length - 1]
-    const left = await this.store.get(n.leftId)
+    const left = await getNode(this.store, n.leftId)
     if (left) {
       n = left
       while (n) {
         stack.push(n)
-        n = await this.store.get(n.rightId)
+        n = await getNode(this.store, n.rightId)
       }
     } else {
       stack.pop()
@@ -191,7 +191,7 @@ export async function begin<K, V>(args: {
   const stack: Array<AvlNode<K, V>> = []
   while (node) {
     stack.push(node)
-    node = await store.get(node.leftId)
+    node = await getNode(store, node.leftId)
   }
   return new AvlTreeIterator({ root, store, stack })
 }
@@ -205,7 +205,7 @@ export async function end<K, V>(args: {
   const stack: Array<AvlNode<K, V>> = []
   while (node) {
     stack.push(node)
-    node = await store.get(node.rightId)
+    node = await getNode(store, node.rightId)
   }
   return new AvlTreeIterator({ root, store, stack })
 }
@@ -227,7 +227,7 @@ export async function at<K, V>(args: {
   const stack: Array<AvlNode<K, V>> = []
   while (true) {
     stack.push(node)
-    const left = await store.get(node.leftId)
+    const left = await getNode(store, node.leftId)
     if (left) {
       if (idx < left.count) {
         node = left
@@ -239,7 +239,7 @@ export async function at<K, V>(args: {
       return new AvlTreeIterator({ root, store, stack })
     }
     idx -= 1
-    const right = await store.get(node.rightId)
+    const right = await getNode(store, node.rightId)
     if (right) {
       if (idx >= right.count) {
         break
@@ -269,9 +269,9 @@ export async function ge<K, V>(args: {
       last_ptr = stack.length
     }
     if (direction <= 0) {
-      node = await store.get(node.leftId)
+      node = await getNode(store, node.leftId)
     } else {
-      node = await store.get(node.rightId)
+      node = await getNode(store, node.rightId)
     }
   }
   // TODO: this feels sketchy
@@ -296,9 +296,9 @@ export async function gt<K, V>(args: {
       last_ptr = stack.length
     }
     if (direction < 0) {
-      node = await store.get(node.leftId)
+      node = await getNode(store, node.leftId)
     } else {
-      node = await store.get(node.rightId)
+      node = await getNode(store, node.rightId)
     }
   }
   // TODO: this feels sketchy
@@ -323,9 +323,9 @@ export async function lt<K, V>(args: {
       last_ptr = stack.length
     }
     if (direction <= 0) {
-      node = await store.get(node.leftId)
+      node = await getNode(store, node.leftId)
     } else {
-      node = await store.get(node.rightId)
+      node = await getNode(store, node.rightId)
     }
   }
   // TODO: this feels sketchy
@@ -350,9 +350,9 @@ export async function le<K, V>(args: {
       last_ptr = stack.length
     }
     if (direction < 0) {
-      node = await store.get(node.leftId)
+      node = await getNode(store, node.leftId)
     } else {
-      node = await store.get(node.rightId)
+      node = await getNode(store, node.rightId)
     }
   }
   // TODO: this feels sketchy
