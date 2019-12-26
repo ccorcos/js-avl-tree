@@ -11,9 +11,9 @@ export class InMemoryKeyValueStorage<T> implements KeyValueWritableStorage<T> {
     return JSON.parse(result)
   }
 
-  async batch(args: BatchArgs<T>): Promise<void> {
+  async batch(args: BatchArgs<string, T>): Promise<void> {
     if (args.writes) {
-      for (const [key, value] of Object.entries(args.writes)) {
+      for (const [key, value] of args.writes.entries()) {
         // TODO: use Object.freeze instead for perf.
         this.map[key] = JSON.stringify(value)
       }

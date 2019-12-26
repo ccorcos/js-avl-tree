@@ -48,7 +48,7 @@ export class TreeDb<K, V> {
     const tree = await this.getTree()
     const newTree = await tree.insert(key, value)
     await this.store.batch({
-      writes: { [headKey(this.name)]: newTree.root?.id },
+      writes: new Map([[headKey(this.name), newTree.root?.id]]),
     })
     this.tree = newTree
   }
@@ -57,7 +57,7 @@ export class TreeDb<K, V> {
     const tree = await this.getTree()
     const newTree = await tree.remove(key)
     await this.store.batch({
-      writes: { [headKey(this.name)]: newTree.root?.id },
+      writes: new Map([[headKey(this.name), newTree.root?.id]]),
     })
     this.tree = newTree
   }

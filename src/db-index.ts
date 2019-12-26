@@ -94,17 +94,20 @@ export type ScanArgs = {
 }
 
 interface IndexReadableStorage {
-  get<K extends Tuple, V>(index: Index<K, V>, key: K): Promise<V | undefined>
-  scan<K extends Tuple, V>(
+  get: <K extends Tuple, V>(
+    index: Index<K, V>,
+    key: K
+  ) => Promise<V | undefined>
+  scan: <K extends Tuple, V>(
     index: Index<K, V>,
     args: ScanArgs
-  ): Promise<Array<[K, V]>>
+  ) => Promise<Array<[K, V]>>
 }
 
 interface IndexWritableStorage extends IndexReadableStorage {
-  batch<K extends Tuple, V>(
+  batch: <K extends Tuple, V>(
     args: Map<Index<K, V>, { set?: Map<K, V>; remove?: Set<K> }>
-  ): Promise<void>
+  ) => Promise<void>
 }
 
 type NamespacedKeyValueStorage = <T>(

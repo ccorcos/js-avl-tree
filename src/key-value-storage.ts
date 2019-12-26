@@ -1,6 +1,6 @@
-export type BatchArgs<V> = {
-  writes?: Record<string, V>
-  deletes?: Set<string>
+export type BatchArgs<K, V> = {
+  writes?: Map<K, V>
+  deletes?: Set<K>
 }
 
 export interface ShardedKeyValueReadableStorage<V> {
@@ -9,7 +9,7 @@ export interface ShardedKeyValueReadableStorage<V> {
 
 export interface ShardedKeyValueWritableStorage<V>
   extends ShardedKeyValueReadableStorage<V> {
-  batch: (args: Record<string, BatchArgs<V>>) => Promise<void>
+  batch: (args: Record<string, BatchArgs<string, V>>) => Promise<void>
 }
 
 export interface KeyValueReadableStorage<V> {
@@ -17,7 +17,7 @@ export interface KeyValueReadableStorage<V> {
 }
 
 export interface KeyValueWritableStorage<V> extends KeyValueReadableStorage<V> {
-  batch: (args: BatchArgs<V>) => Promise<void>
+  batch: (args: BatchArgs<string, V>) => Promise<void>
 }
 
 export class KeyValueStore<V> implements KeyValueWritableStorage<V> {
@@ -28,7 +28,7 @@ export class KeyValueStore<V> implements KeyValueWritableStorage<V> {
   get = (key: string): Promise<V | undefined> => {
     return this.store.get(this.shard, key)
   }
-  batch = (args: BatchArgs<V>): Promise<void> => {
+  batch = (args: BatchArgs<string, V>): Promise<void> => {
     return this.store.batch({ [this.shard]: args })
   }
 }
@@ -37,27 +37,25 @@ export class KeyValueTransaction<V> {
   constructor(public store: KeyValueReadableStorage<V>) {}
 
   // Cache to improve performance during a transaction.
-  private cache: Record<string, V | undefined> = {}
-  private writes: Record<string, V> = {}
+  private cache: Map<string, V | undefined> = new Map()
+  private writes: Map<string, V> = new Map()
   private deletes: Set<string> = new Set()
 
   get = async (key: string): Promise<V | undefined> => {
     if (!key) {
       return
     }
-    if (key in this.writes) {
-      return this.writes[key]
+    if (this.writes.has(key)) {
+      return this.writes.get(key)
     }
     if (this.deletes.has(key)) {
       return undefined
     }
-    if (key in this.cache) {
-      return this.cache[key]
+    if (this.cache.has(key)) {
+      return this.cache.get(key)
     }
     const value = await this.store.get(key)
-    if (value !== undefined) {
-      this.cache[key] = value
-    }
+    this.cache.set(key, value)
     return value
   }
 
@@ -65,25 +63,25 @@ export class KeyValueTransaction<V> {
     if (this.deletes.has(key)) {
       this.deletes.delete(key)
     }
-    if (key in this.cache) {
-      delete this.cache[key]
+    if (this.cache.has(key)) {
+      this.cache.delete(key)
     }
-    this.writes[key] = value
+    this.writes.set(key, value)
   }
 
   // Don't remove the key, but undo the set if there was one.
   unset = (key: string) => {
-    if (key in this.writes) {
-      delete this.writes[key]
+    if (this.writes.has(key)) {
+      this.writes.delete(key)
     }
   }
 
   remove = (key: string) => {
-    if (key in this.writes) {
-      delete this.writes[key]
+    if (this.writes.has(key)) {
+      this.writes.delete(key)
     }
-    if (key in this.cache) {
-      delete this.cache[key]
+    if (this.cache.has(key)) {
+      this.cache.delete(key)
     }
     this.deletes.add(key)
   }

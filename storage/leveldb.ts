@@ -69,10 +69,10 @@ export class LevelDbKeyValueStorage<T> implements KeyValueWritableStorage<T> {
     return JSON.parse(result)
   }
 
-  async batch(args: BatchArgs<T>): Promise<void> {
+  async batch(args: BatchArgs<string, T>): Promise<void> {
     await this.db.batch([
       ...(args.writes
-        ? Object.entries(args.writes).map(([key, value]) => ({
+        ? Array.from(args.writes.entries()).map(([key, value]) => ({
             type: "put" as const,
             key,
             value: JSON.stringify(value),

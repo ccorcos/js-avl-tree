@@ -27,7 +27,7 @@ export interface AvlNodeReadableStorage<K, V> {
 
 export interface AvlNodeWritableStorage<K, V>
   extends AvlNodeReadableStorage<K, V> {
-  batch: (args: BatchArgs<AvlNode<K, V>>) => Promise<void>
+  batch: (args: BatchArgs<string, AvlNode<K, V>>) => Promise<void>
 }
 
 export class AvlNodeReadableStore<K, V>
@@ -53,16 +53,17 @@ export class AvlNodeWritableStore<K, V>
     return this.store.get(id)
   }
 
-  batch = async (args: BatchArgs<AvlNode<K, V>>): Promise<void> => {
+  batch = async (args: BatchArgs<string, AvlNode<K, V>>): Promise<void> => {
     this.store.batch(args)
   }
 }
 
+// TODO: Reuse KeyValueTransaction?
 export class AvlNodeTransaction<K, V> implements AvlNodeReadableStorage<K, V> {
   constructor(public store: AvlNodeReadableStorage<K, V>) {}
 
-  private cache: Record<string, AvlNode<K, V> | undefined> = {}
-  public writes: Record<string, AvlNode<K, V>> = {}
+  private cache: Map<string, AvlNode<K, V> | undefined> = new Map()
+  public writes: Map<string, AvlNode<K, V>> = new Map()
 
   // Transactions have a caching layer to improve performance and also
   // return data that is queued to be written.
@@ -70,27 +71,27 @@ export class AvlNodeTransaction<K, V> implements AvlNodeReadableStorage<K, V> {
     if (!id) {
       return
     }
-    if (id in this.writes) {
-      return this.writes[id]
+    if (this.writes.has(id)) {
+      return this.writes.get(id)
     }
-    if (id in this.cache) {
-      return this.cache[id]
+    if (this.cache.has(id)) {
+      return this.cache.get(id)
     }
     const data = await this.store.get(id)
-    this.cache[id] = data
+    this.cache.set(id, data)
     return data
   }
 
   set = (value: AvlNode<K, V>) => {
     const id = value.id
-    this.cache[id] = value
-    this.writes[id] = value
+    this.cache.set(id, value)
+    this.writes.set(id, value)
   }
 
   clone = (node: AvlNode<K, V>): AvlNode<K, V> => {
     // When cloning a node, remove it from the write so we don't create unnecessary
     // amounts of data. The `checkStore` test cases make sure of this.
-    delete this.writes[node.id]
+    this.writes.delete(node.id)
     const newNode = {
       ...node,
       id: randomId(),
