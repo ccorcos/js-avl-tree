@@ -1,5 +1,13 @@
-import { AvlNode, AvlNodeReadableStore } from "./avl-storage"
-import { KeyValueWritableStorage } from "./key-value-storage"
+import {
+  AvlNode,
+  AvlNodeReadableStore,
+  AvlNodeTransaction,
+} from "./avl-storage"
+import {
+  BatchArgs,
+  ShardedKeyValueWritableStorage,
+  KeyValueStore,
+} from "./key-value-storage"
 import * as avl from "./avl-tree"
 import * as iter from "./avl-iterator"
 
@@ -93,7 +101,7 @@ export type ScanArgs = {
   limit?: number
 }
 
-interface IndexReadableStorage {
+export interface IndexReadableStorage {
   get: <K extends Tuple, V>(
     index: Index<K, V>,
     key: K
@@ -104,25 +112,23 @@ interface IndexReadableStorage {
   ) => Promise<Array<[K, V]>>
 }
 
-interface IndexWritableStorage extends IndexReadableStorage {
+export interface IndexWritableStorage extends IndexReadableStorage {
   batch: <K extends Tuple, V>(
-    args: Map<Index<K, V>, { set?: Map<K, V>; remove?: Set<K> }>
+    args: Map<Index<K, V>, BatchArgs<K, V>>
   ) => Promise<void>
 }
 
-type NamespacedKeyValueStorage = <T>(
-  namespace: string
-) => KeyValueWritableStorage<T>
-
-export class KeyValueIndexStorage {
-  constructor(private storage: NamespacedKeyValueStorage) {}
+export class KeyValueIndexStorage implements IndexWritableStorage {
+  constructor(private store: ShardedKeyValueWritableStorage<any>) {}
 
   get head() {
-    return this.storage<string>("head")
+    return new KeyValueStore<string>(this.store, "head")
   }
 
   index<K extends Tuple, V>(index: Index<K, V>) {
-    return new AvlNodeReadableStore(this.storage<AvlNode<K, V>>(index.name))
+    return new AvlNodeReadableStore(
+      new KeyValueStore<AvlNode<K, V>>(this.store, index.name)
+    )
   }
 
   async get<K extends Tuple, V>(
@@ -154,6 +160,7 @@ export class KeyValueIndexStorage {
       : await iter.begin({ store, root })
 
     while (i.valid && i.node) {
+      // TODO: this is an annoying cast.
       results.push([i.node.key as K, i.node.value])
       await i.next()
       if (args.limit && results.length === args.limit) {
@@ -171,22 +178,37 @@ export class KeyValueIndexStorage {
   }
 
   async batch<K extends Tuple, V>(
-    args: Map<Index<K, V>, { set?: Map<K, V>; remove?: Set<K> }>
+    args: Map<Index<K, V>, BatchArgs<K, V>>
   ): Promise<void> {
-    // TODO: HERE
+    const head: Map<string, string> = new Map()
+    const batch: Record<string, BatchArgs<string, any>> = {
+      head: { writes: head },
+    }
+
+    await Promise.all(
+      Array.from(args.entries()).map(async ([index, { writes, deletes }]) => {
+        const rootId = await this.head.get(index.name)
+        const store = this.index(index)
+        const compare = compareQueryTuple(index.sort)
+        let root = await store.get(rootId)
+        const transaction = new AvlNodeTransaction(store)
+        if (writes) {
+          for (const [key, value] of writes) {
+            root = await avl.insert({ transaction, compare, root, key, value })
+          }
+        }
+        if (deletes) {
+          for (const key of deletes) {
+            root = await avl.remove({ transaction, compare, root, key })
+          }
+        }
+        if (root?.id !== rootId) {
+          batch[index.name] = transaction
+          head.set(index.name, root?.id)
+        }
+      })
+    )
+
+    await this.store.batch(batch)
   }
 }
-
-// const contacts: Index<[string], Contact> = {
-//   name: "contacts",
-//   sort: [1],
-// }
-
-// const contacts = new TreeDb<string, Contact>({
-//   name: "contacts",
-
-// const lastFirstIndex = new TreeDb<[string, string, string], null>({
-//   name: "contacts-last-first",
-
-// const emailIndex = new TreeDb<[string, string], null>({
-//   name: "contacts-email",

@@ -1,10 +1,10 @@
 import test from "ava"
 import { TreeDb } from "../src/treedb"
-import { LevelDb, LevelDbKeyValueStorage } from "../storage/leveldb"
+import { LevelDb, LevelDbKeyValueStore } from "../storage/leveldb"
 import { compare } from "../src/utils"
 
 // Durable storage.
-const store = new LevelDbKeyValueStorage(new LevelDb("./contacts.leveldb"))
+const store = new LevelDbKeyValueStore(new LevelDb("./contacts.leveldb"))
 
 // We're going to create a database for storing contacts.
 interface Contact {

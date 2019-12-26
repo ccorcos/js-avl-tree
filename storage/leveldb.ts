@@ -58,7 +58,7 @@ export class LevelDb {
   }
 }
 
-export class LevelDbKeyValueStorage<T> implements KeyValueWritableStorage<T> {
+export class LevelDbKeyValueStore<T> implements KeyValueWritableStorage<T> {
   constructor(private db: LevelDb) {}
 
   async get(key: string): Promise<T | undefined> {

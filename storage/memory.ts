@@ -1,6 +1,30 @@
-import { KeyValueWritableStorage, BatchArgs } from "../src/key-value-storage"
+import {
+  ShardedKeyValueWritableStorage,
+  KeyValueWritableStorage,
+  BatchArgs,
+} from "../src/key-value-storage"
 
-export class InMemoryKeyValueStorage<T> implements KeyValueWritableStorage<T> {
+export class InMemoryShardedKeyValueStore<V>
+  implements ShardedKeyValueWritableStorage<V> {
+  private map: Map<string, KeyValueWritableStorage<V>> = new Map()
+
+  get = async (shard: string, key: string): Promise<V | undefined> => {
+    return this.map.get(shard)?.get(key)
+  }
+
+  batch = async (args: Record<string, BatchArgs<string, V>>): Promise<void> => {
+    Object.entries(args).map(([shard, batch]) => {
+      let store = this.map.get(shard)
+      if (!store) {
+        store = new InMemoryKeyValueStore()
+        this.map.set(shard, store)
+      }
+      store.batch(batch)
+    })
+  }
+}
+
+export class InMemoryKeyValueStore<T> implements KeyValueWritableStorage<T> {
   private map: Record<string, string> = {}
 
   async get(key: string): Promise<T | undefined> {
