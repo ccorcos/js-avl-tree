@@ -27,7 +27,7 @@ interface Contact {
 //   email text
 // )
 // ```
-const primary: Index<[string], Contact> = {
+const primaryIndex: Index<[string], Contact> = {
   name: "contacts-primary",
   sort: [1],
 }
@@ -38,7 +38,7 @@ const primary: Index<[string], Contact> = {
 // ```
 // create index contacts_last_first on contacts using btree (last, first)
 // ```
-const lastFirst: Index<[string, string, string], null> = {
+const lastFirstIndex: Index<[string, string, string], null> = {
   name: "contacts-last-first",
   sort: [1, 1, 1],
 }
@@ -48,7 +48,7 @@ const lastFirst: Index<[string, string, string], null> = {
 // ```
 // create index contacts_email on contacts using btree (email)
 // ```
-const email: Index<[string, string], null> = {
+const emailIndex: Index<[string, string], null> = {
   name: "contacts-email",
   sort: [1, 1],
 }
@@ -61,17 +61,21 @@ async function saveContact(contact: Contact) {
   // Remove the existing value from all indexes.
   const transaction = new KeyValueIndexTransaction(store2)
 
-  const prev = await transaction.get(primary, [contact.id])
+  const prev = await transaction.get(primaryIndex, [contact.id])
   if (prev) {
-    transaction.remove(primary, [prev.id])
-    transaction.remove(lastFirst, [prev.last, prev.first, prev.id])
-    transaction.remove(email, [prev.email, prev.id])
+    await transaction.remove(primaryIndex, [prev.id])
+    await transaction.remove(lastFirstIndex, [prev.last, prev.first, prev.id])
+    await transaction.remove(emailIndex, [prev.email, prev.id])
   }
 
   // Add new value to all indexes.
-  transaction.set(primary, [contact.id], contact)
-  transaction.set(lastFirst, [contact.last, contact.first, contact.id], null)
-  transaction.set(email, [contact.email, contact.id], null)
+  await transaction.set(primaryIndex, [contact.id], contact)
+  await transaction.set(
+    lastFirstIndex,
+    [contact.last, contact.first, contact.id],
+    null
+  )
+  await transaction.set(emailIndex, [contact.email, contact.id], null)
 
   await store.batch(transaction)
 }
@@ -80,11 +84,11 @@ async function saveContact(contact: Contact) {
  * Lists contacts in last-first name order.
  */
 async function listContacts() {
-  const results = await store.scan(lastFirst)
+  const results = await store.scan(lastFirstIndex)
   return _.compact(
     await Promise.all(
       results.map(([[last, first, id], value]) => {
-        return store.get(primary, [id])
+        return store.get(primaryIndex, [id])
       })
     )
   )
@@ -94,14 +98,14 @@ async function listContacts() {
  * Lookup all contacts for a given email address.
  */
 async function lookupContacts(email: string) {
-  const results = await store.scan(lastFirst, {
+  const results = await store.scan(emailIndex, {
     gte: [email, MIN],
     lte: [email, MAX],
   })
   return _.compact(
     await Promise.all(
       results.map(([[email, id], value]) => {
-        return store.get(primary, [id])
+        return store.get(primaryIndex, [id])
       })
     )
   )

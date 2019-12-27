@@ -4,7 +4,7 @@
   "description": "An implementation of the AVL tree data structure",
   "scripts": {
     "build": "rm -rf build && tsc",
-    "test": "npm run build && ava ./build/test/*.js",
+    "test": "npm run build && ava ./build/test/*.js --verbose",
     "bench": "ts-node bench/leveldb.ts && ts-node bench/sqlite.ts && ts-node bench/treedb.ts"
   },
   "repository": {

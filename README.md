@@ -22,49 +22,24 @@ Soming soon...
 
 ## To Do
 
+- clean up transactions ux.
+  - creating a transaction, werid arguments for KeyValueIndexWritableStore inside contacts-example2.
 
-- IndexTransaction should use ShardedTransaction...
-  - Batch should only ever accept transactions.
+- File storage abstraction with in-memory AVL store that flushes to disk.
 
-- Finish contacts example
-- clean up  transactions ux.
-- Maybe make a Table abstraction like SQL.
+- rip out treedb -- its no longer useful for us.
+- clean up some of the avl-test-helpers.
 
+- Make a Table abstraction like SQL for indexing documents.
 
+- Reactivity + listeners for building an electron app
+  - TodoMVC electron example.
 
-
-
-
-- use key-value storage as the basis for everything.
-  - construct indexstorage from key-value storage.
-  - construct head-storage.
-  - do all of this on AVL and consider how this can work with files later.
-
-- avl transaction should use an underyling storage transaction.
-- the transaction layer should be on key-value-storage, not on AVL storage.
-
-- index storage + transaction abstractions
-- contacts app test example
-- client reactivity + TodoMVC
-
-- batched set/get across multiple trees.
-  - see contacts-example test.
-  - [ ] rewrite contacts-example using primitives instead of AVLTree.
-    - [ ] treedb should be called avl-index and have some functions for writing the head.
-          then, treedb is just a collection of indexes?
-  - [ ] think about what's the best abstraction for this?
-
-- methodology for cleaning up history if we want
+- Methodology for cleaning up history if we want
   - this is useful for MVCC without too much storage requirements.
   - could be nice to be able to keep some snapshots around.
 
-- [ ] scan / cursoring
-- [ ] better abstractions for indexes.
-
-- [ ] accept custom randomId generator.
-
-- [ ] TodoMVC electron app
-  - [ ] Reactivity?
+- accept custom randomId generator.
 
 - garbage collection issue.
   - https://github.com/nodejs/node/issues/30554
